@@ -25,6 +25,12 @@ htmlcov/
 .idea/
 .vscode/
 
-# Claude Code (personal: machine-specific symlinks + local settings)
-.claude/
+# Claude Code — ignore only the personal, machine-specific bits.
+# .claude/settings.json and .claude/hooks/ are committed (shared): Claude Code on
+# the web clones the repo with no global config, so it needs them present.
+.claude/agents
+.claude/commands
+.claude/skills
+.claude/rules
+.claude/settings.local.json
 .mcp.json
