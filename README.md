@@ -63,4 +63,13 @@ In M1 a submitted job is recorded as `PENDING` and not processed — the worker 
 
 ## Development
 
-`make help` lists the targets. CI runs `make ci` (ruff lint + format-check + pytest) against a PostgreSQL service.
+`make help` lists every target. Two gates guard the repo:
+
+- **`make ci`** — stack gate: ruff lint + format-check + pytest, against a
+  PostgreSQL service. Run by the `ci` workflow.
+- **`make check`** — docs/hygiene gate: internal markdown link + anchor
+  validation (bash + python3 only). Run by `check` on every push/PR, weekly by
+  `scheduled-check`, and locally on commit.
+
+PR titles are linted (warn-only) by `commit-style`. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for commit conventions.
