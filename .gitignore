@@ -24,3 +24,7 @@ htmlcov/
 .DS_Store
 .idea/
 .vscode/
+
+# Claude Code (personal: machine-specific symlinks + local settings)
+.claude/
+.mcp.json

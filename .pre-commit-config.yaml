@@ -5,3 +5,15 @@ repos:
       - id: ruff
         args: [--fix]
       - id: ruff-format
+
+  # Local docs/hygiene gate — runs `make check` (markdown link + anchor validators).
+  # Fires via the global ~/.config/git/hooks dispatcher's `pre-commit run`; no
+  # repo-local core.hooksPath is set, so ggshield secret-scanning stays active.
+  - repo: local
+    hooks:
+      - id: make-check
+        name: make check (docs/hygiene gate)
+        entry: make check
+        language: system
+        pass_filenames: false
+        always_run: true
