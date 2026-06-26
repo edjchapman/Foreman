@@ -59,6 +59,23 @@ DATABASES = {
     )
 }
 
+# === Celery / Redis (M2: async worker + transactional outbox) ===
+# Broker and result backend default to the same Redis; both overridable for prod.
+REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", REDIS_URL)
+CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", REDIS_URL)
+# Tests flip this to run tasks inline (no broker); see conftest._eager_celery.
+CELERY_TASK_ALWAYS_EAGER = os.environ.get("CELERY_TASK_ALWAYS_EAGER", "false").lower() == "true"
+CELERY_TASK_EAGER_PROPAGATES = True
+CELERY_TIMEZONE = "UTC"
+# Beat drives the outbox relay: poll PENDING events and publish them to the broker.
+CELERY_BEAT_SCHEDULE = {
+    "dispatch-outbox": {
+        "task": "jobs.dispatch_outbox",
+        "schedule": float(os.environ.get("OUTBOX_POLL_SECONDS", "1.0")),
+    },
+}
+
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",

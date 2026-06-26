@@ -9,12 +9,14 @@ dependencies = [
     "psycopg[binary]>=3.2",
     "dj-database-url>=2.2",
     "gunicorn>=23.0",
+    "celery[redis]>=5.4",
 ]
 
 [dependency-groups]
 dev = [
     "pytest>=8.3",
     "pytest-django>=4.9",
+    "pytest-cov>=5.0",
     "factory-boy>=3.3",
     "ruff>=0.7",
     "pre-commit>=4.0",
@@ -38,4 +40,20 @@ select = ["F", "E", "W", "I", "UP", "B", "DJ"]
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings"
 python_files = ["test_*.py"]
+# Coverage flags live in `make ci` (not here) so local `make test` runs stay fast
+# and aren't blocked by the threshold mid-development.
 addopts = "-q --reuse-db"
+
+[tool.coverage.run]
+source = ["jobs", "config"]
+# Omit framework glue and generated/test code so the threshold reflects real logic.
+omit = [
+    "*/migrations/*",
+    "*/tests/*",
+    "config/wsgi.py",
+    "config/asgi.py",
+    "manage.py",
+]
+
+[tool.coverage.report]
+show_missing = true

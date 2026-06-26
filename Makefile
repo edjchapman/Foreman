@@ -1,4 +1,5 @@
 .PHONY: help up down build logs migrate makemigrations test lint fmt ci shell \
+        worker beat relay \
         check check-links check-anchors stack-check \
         check-commit-msg check-stale-branches sweep-branches lint-md
 
@@ -42,10 +43,22 @@ fmt: ## Auto-fix lint + format
 	uv run ruff check --fix .
 	uv run ruff format .
 
-ci: lint test ## What CI runs: lint + tests
+ci: lint ## What CI runs: lint + coverage-gated tests (fails under 80%)
+	uv run pytest --cov --cov-report=term-missing --cov-fail-under=80
 
 shell: ## Django shell
 	uv run python manage.py shell
+
+# === Celery (M2: async worker + outbox relay) ===
+
+worker: ## Run a Celery worker (host)
+	uv run celery -A config worker -l info
+
+beat: ## Run Celery beat — schedules the outbox relay
+	uv run celery -A config beat -l info
+
+relay: ## Dispatch the outbox once (no beat) — claims + publishes PENDING events
+	uv run python manage.py shell -c "from jobs.tasks import dispatch_outbox; print(dispatch_outbox())"
 
 # === Validation (docs/hygiene gate — run by check.yml, scheduled-check.yml, pre-commit) ===
 

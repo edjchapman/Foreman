@@ -1,3 +1,12 @@
+# Shared app env — web, worker, and beat run the same image against the same
+# Postgres + Redis. Anchored here so the three services stay in lockstep.
+x-app-env: &app-env
+  DATABASE_URL: postgres://foreman:foreman@db:5432/foreman
+  REDIS_URL: redis://redis:6379/0
+  DJANGO_DEBUG: "true"
+  DJANGO_SECRET_KEY: dev-insecure
+  DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,0.0.0.0
+
 services:
   db:
     image: postgres:16
@@ -15,18 +24,50 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   web:
     build: .
     command: sh -c "uv run python manage.py migrate && uv run python manage.py runserver 0.0.0.0:8000"
-    environment:
-      DATABASE_URL: postgres://foreman:foreman@db:5432/foreman
-      DJANGO_DEBUG: "true"
-      DJANGO_SECRET_KEY: dev-insecure
-      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,0.0.0.0
+    environment: *app-env
     ports:
       - "8000:8000"
     depends_on:
       db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./:/app
+
+  worker:
+    build: .
+    command: uv run celery -A config worker -l info
+    environment: *app-env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./:/app
+
+  beat:
+    build: .
+    command: uv run celery -A config beat -l info
+    environment: *app-env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     volumes:
       - ./:/app
