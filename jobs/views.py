@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 
 from .models import Job
 from .serializers import JobCreateSerializer, JobSerializer
+from .services import submit_job
 
 
 class JobViewSet(
@@ -16,8 +17,9 @@ class JobViewSet(
 ):
     """Submit (POST), retrieve, and list jobs.
 
-    Submitting only records the job as PENDING — M1 has no worker yet (that's M2).
-    An optional `Idempotency-Key` header makes resubmission safe at the API edge;
+    Submitting records the job as PENDING and, in the same transaction, an outbox
+    event the relay publishes to the worker (see `jobs.services.submit_job`). An
+    optional `Idempotency-Key` header makes resubmission safe at the API edge;
     worker-side exactly-once processing lands in M3.
     """
 
@@ -30,18 +32,13 @@ class JobViewSet(
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        idempotency_key = request.headers.get("Idempotency-Key")
-        if idempotency_key:
-            existing = Job.objects.filter(idempotency_key=idempotency_key).first()
-            if existing:
-                data = JobSerializer(existing, context=self.get_serializer_context()).data
-                return Response(data, status=status.HTTP_200_OK)
-
-        job = Job.objects.create(
-            idempotency_key=idempotency_key,
+        job, created = submit_job(
+            idempotency_key=request.headers.get("Idempotency-Key"),
             **serializer.validated_data,
         )
         data = JobSerializer(job, context=self.get_serializer_context()).data
+        if not created:
+            return Response(data, status=status.HTTP_200_OK)
         location = reverse("job-detail", args=[job.id], request=request)
         return Response(data, status=status.HTTP_202_ACCEPTED, headers={"Location": location})
 
