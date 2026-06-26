@@ -8,7 +8,7 @@ A user submits a processing job (e.g. a property/lease CSV import); the API reco
 
 ## Status
 
-🚧 **Building — Milestone 2 (async worker + transactional outbox).** Submitting a job now writes the job and a domain event in one transaction; a Celery Beat relay publishes the event to a worker that ingests the property CSV and drives the job to completion. M1 (submit/track API on PostgreSQL, containerised, CI-green) is complete.
+✅ **Milestone 2 complete (async worker + transactional outbox).** Submitting a job writes the job and a domain event in one transaction; a Celery Beat relay publishes the event to a worker that ingests the property CSV and drives the job to completion. M1 (submit/track API on PostgreSQL, containerised, CI-green) is also done. Next: **M3 — reliability** (worker-side idempotency, retries with backoff, dead-letter).
 
 ## Stack
 
@@ -62,7 +62,7 @@ A submitted job is recorded `PENDING` together with a transactional-outbox event
 ## Roadmap
 
 - **M1 — walking skeleton** *(done)*: repo, Docker Compose, `Job` model, submit/track API, health check, tests + CI.
-- **M2 — async worker + transactional outbox** *(in progress)* (Redis + Celery): atomic job+event write, Beat relay, worker ingests the property CSV into `PropertyRecord`. See [ADR 0001](docs/adr/0001-transactional-outbox.md).
+- **M2 — async worker + transactional outbox** *(done)* (Redis + Celery): atomic job+event write, Beat relay, worker ingests the property CSV into `PropertyRecord`. See [ADR 0001](docs/adr/0001-transactional-outbox.md).
 - **M3 — reliability**: worker-side idempotency, retries with backoff, dead-letter, documented failure modes.
 - **M4 — realtime UI + observability**: React/TS + live WebSocket progress (Channels), structured logging, runbook.
 - **M5 — ship**: Cypress E2E, deploy + public demo, case study.
