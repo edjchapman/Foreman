@@ -1,0 +1,6 @@
+external_id,address_line1,city,postcode,price,bedrooms
+P-1001,12 Acacia Avenue,Manchester,M14 5TP,245000,3
+P-1002,4 Elm Court,Leeds,LS2 7QF,189950,2
+P-1003,88 Riverside Walk,Bristol,BS1 6QA,410000,4
+P-1004,2 Station Road,Sheffield,S1 2BP,132500,1
+P-1005,17 Oakfield Drive,Nottingham,NG7 2RD,275000,3
