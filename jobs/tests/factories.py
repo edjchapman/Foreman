@@ -8,4 +8,5 @@ class JobFactory(factory.django.DjangoModelFactory):
         model = Job
 
     job_type = "property_csv_import"
-    payload = factory.LazyFunction(lambda: {"source": "s3://bucket/sample.csv"})
+    # Resolves to the bundled fixture so factory-built jobs ingest cleanly.
+    payload = factory.LazyFunction(lambda: {"source": "sample:properties.csv"})

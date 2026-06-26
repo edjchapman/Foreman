@@ -91,3 +91,27 @@ class OutboxEvent(models.Model):
 
     def __str__(self):
         return f"OutboxEvent {self.id} [{self.status}] {self.event_type}"
+
+
+class PropertyRecord(models.Model):
+    """A single property row imported from a job's CSV.
+
+    M3 seam: a unique natural key on `external_id` (or an upsert) will give
+    exactly-once *effect* when a job is redelivered. M2 leaves it unconstrained to
+    keep scope tight — the worker's PENDING-guard already prevents reprocessing.
+    """
+
+    job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name="properties")
+    external_id = models.CharField(max_length=64)
+    address_line1 = models.CharField(max_length=255)
+    city = models.CharField(max_length=128)
+    postcode = models.CharField(max_length=16)
+    price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    bedrooms = models.PositiveSmallIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"PropertyRecord {self.external_id} ({self.city})"
