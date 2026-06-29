@@ -1,9 +1,10 @@
 import pytest
+from pytest_django.fixtures import SettingsWrapper
 from rest_framework.test import APIClient
 
 
 @pytest.fixture(autouse=True)
-def _eager_celery(settings):
+def _eager_celery(settings: SettingsWrapper) -> None:
     """Run Celery tasks inline so the suite needs no broker.
 
     With ALWAYS_EAGER, `.delay()` executes synchronously in-process against the
@@ -16,5 +17,5 @@ def _eager_celery(settings):
 
 
 @pytest.fixture
-def api_client():
+def api_client() -> APIClient:
     return APIClient()

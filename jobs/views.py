@@ -1,5 +1,8 @@
+from typing import Any
+
 from django.db import connection
-from rest_framework import mixins, status, viewsets
+from rest_framework import mixins, serializers, status, viewsets
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from rest_framework.views import APIView
@@ -25,10 +28,10 @@ class JobViewSet(
 
     queryset = Job.objects.all()
 
-    def get_serializer_class(self):
+    def get_serializer_class(self) -> type[serializers.BaseSerializer]:
         return JobCreateSerializer if self.action == "create" else JobSerializer
 
-    def create(self, request, *args, **kwargs):
+    def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -49,7 +52,7 @@ class HealthView(APIView):
     authentication_classes = []
     permission_classes = []
 
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         try:
             with connection.cursor() as cursor:
                 cursor.execute("SELECT 1")

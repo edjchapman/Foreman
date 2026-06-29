@@ -31,7 +31,7 @@ def load_csv_text(payload: dict) -> str:
     Inline ``payload["csv"]`` wins; otherwise ``payload["source"]`` must be a
     ``sample:<name>`` reference to a bundled fixture. Remote schemes are M3+.
     """
-    inline = payload.get("csv")
+    inline: str | None = payload.get("csv")
     if inline:
         return inline
 
@@ -56,7 +56,7 @@ def parse_rows(text: str) -> tuple[list[dict], list[dict]]:
     errors: list[dict] = []
     for line_no, row in enumerate(reader, start=1):
         record, reason = _validate_row(row)
-        if reason is not None:
+        if record is None:
             errors.append({"row": line_no, "reason": reason})
         else:
             records.append(record)

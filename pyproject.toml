@@ -20,6 +20,10 @@ dev = [
     "factory-boy>=3.3",
     "ruff>=0.7",
     "pre-commit>=4.0",
+    "mypy>=1.13",
+    "django-stubs[compatible-mypy]>=5.2,<5.3",
+    "djangorestframework-stubs[compatible-mypy]>=3.16",
+    "celery-types>=0.26.0",
 ]
 
 # Application (not a library) — don't try to build/install the project itself.
@@ -36,6 +40,34 @@ select = ["F", "E", "W", "I", "UP", "B", "DJ"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/migrations/*" = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+# One deliberate strict relaxation: this is JSON-shaped domain code (job payloads,
+# CSV rows, JSONField results), so bare dict/list read better than dict[str, Any]
+# and the values are Any either way — disallow_any_generics buys noise, not safety.
+disallow_any_generics = false
+plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
+files = ["config", "jobs", "manage.py", "conftest.py"]
+pretty = true
+
+[tool.django-stubs]
+django_settings_module = "config.settings"
+
+# Generated migrations: not our code to type.
+[[tool.mypy.overrides]]
+module = ["*.migrations.*"]
+ignore_errors = true
+
+# Test suite: factory_boy ships py.typed, but its metaclass __call__ isn't typed to
+# return the model — mypy sees `JobFactory()` as the factory, not a Job, so strict mode
+# yields ~100 false positives with no real signal. Application code is type-checked
+# strictly; tests are validated by running them (pytest). Still parsed here, so a broken
+# import or syntax error in a test is caught.
+[[tool.mypy.overrides]]
+module = ["jobs.tests.*"]
+ignore_errors = true
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings"

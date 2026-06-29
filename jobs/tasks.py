@@ -17,10 +17,12 @@ import logging
 import random
 import uuid
 from datetime import timedelta
+from typing import Any
 
 from celery import shared_task
 from django.conf import settings
 from django.db import connection, transaction
+from django.db.models import Model, QuerySet
 from django.utils import timezone
 
 from .ingest import IngestError, load_csv_text, parse_rows
@@ -170,7 +172,7 @@ def _terminal(
     _fenced_update(job, **fields)
 
 
-def _fenced_update(job: Job, **fields) -> int:
+def _fenced_update(job: Job, **fields: Any) -> int:
     """Write `fields` to the job only while it is still PROCESSING under our token.
 
     The status + lease_token guard fences a reclaimed-then-resumed slow worker: once
@@ -297,7 +299,7 @@ def _recover_one_lease(job: Job) -> None:
         )
 
 
-def _lock_for_claim(queryset):
+def _lock_for_claim[M: Model](queryset: QuerySet[M]) -> QuerySet[M]:
     """Row-lock for the claim, using SKIP LOCKED where the backend supports it.
 
     Postgres (production) gets `select_for_update(skip_locked=True)` for concurrent,

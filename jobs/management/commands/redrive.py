@@ -9,8 +9,9 @@ requeue scan re-dispatches it. No new dispatch path.
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 
 from jobs.services import redrive_dead_letter
 
@@ -18,11 +19,12 @@ from jobs.services import redrive_dead_letter
 class Command(BaseCommand):
     help = "Redrive DEAD_LETTER job(s) back into the retry lane."
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument("job_ids", nargs="+", help="Job UUID(s) to redrive.")
 
-    def handle(self, *args, **options):
-        valid, invalid = [], []
+    def handle(self, *args: Any, **options: Any) -> None:
+        valid: list[str] = []
+        invalid: list[str] = []
         for job_id in options["job_ids"]:
             (valid if _is_uuid(job_id) else invalid).append(job_id)
         for bad in invalid:

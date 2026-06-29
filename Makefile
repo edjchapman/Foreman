@@ -1,4 +1,4 @@
-.PHONY: help up down build logs migrate makemigrations test lint fmt ci shell \
+.PHONY: help up down build logs migrate makemigrations test lint fmt typecheck ci shell \
         worker beat relay \
         check check-links check-anchors stack-check \
         check-commit-msg check-stale-branches sweep-branches lint-md
@@ -43,7 +43,10 @@ fmt: ## Auto-fix lint + format
 	uv run ruff check --fix .
 	uv run ruff format .
 
-ci: lint ## What CI runs: lint + coverage-gated tests (fails under 80%)
+typecheck: ## Static type-check (mypy strict + django/DRF stubs; no DB needed)
+	uv run mypy
+
+ci: lint typecheck ## What CI runs: lint + types + coverage-gated tests (fails under 80%)
 	uv run pytest --cov --cov-report=term-missing --cov-fail-under=80
 
 shell: ## Django shell

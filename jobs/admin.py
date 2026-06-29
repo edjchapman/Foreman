@@ -1,4 +1,6 @@
 from django.contrib import admin
+from django.db.models import QuerySet
+from django.http import HttpRequest
 
 from .models import Job, OutboxEvent, PropertyRecord
 from .services import redrive_dead_letter
@@ -22,7 +24,7 @@ class JobAdmin(admin.ModelAdmin):
     actions = ["redrive"]
 
     @admin.action(description="Redrive selected dead-letter jobs")
-    def redrive(self, request, queryset):
+    def redrive(self, request: HttpRequest, queryset: QuerySet[Job]) -> None:
         count = redrive_dead_letter(list(queryset.values_list("pk", flat=True)))
         self.message_user(request, f"Redriven {count} dead-letter job(s).")
 

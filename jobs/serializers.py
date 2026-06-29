@@ -29,7 +29,7 @@ class JobCreateSerializer(serializers.ModelSerializer):
         model = Job
         fields = ["job_type", "payload"]
 
-    def validate_payload(self, value):
+    def validate_payload(self, value: object) -> dict:
         if not isinstance(value, dict) or not value:
             raise serializers.ValidationError("payload must be a non-empty object.")
         return value

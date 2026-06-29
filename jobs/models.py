@@ -64,7 +64,7 @@ class Job(models.Model):
             ),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"Job {self.id} [{self.status}]"
 
 
@@ -108,7 +108,7 @@ class OutboxEvent(models.Model):
             ),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"OutboxEvent {self.id} [{self.status}] {self.event_type}"
 
 
@@ -136,5 +136,5 @@ class PropertyRecord(models.Model):
             models.UniqueConstraint(fields=["job", "external_id"], name="uniq_property_per_job"),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"PropertyRecord {self.external_id} ({self.city})"
