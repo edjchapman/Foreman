@@ -30,7 +30,7 @@ class Job(models.Model):
     payload = models.JSONField(default=dict)
     # Unique-or-absent: a NULL means "no key supplied"; an empty string would collide
     # on the unique constraint, so null=True is the correct pattern here.
-    idempotency_key = models.CharField(  # noqa: DJ001
+    idempotency_key = models.CharField(
         max_length=255,
         null=True,
         blank=True,

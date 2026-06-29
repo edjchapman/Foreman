@@ -1,0 +1,23 @@
+# Normalize line endings at the git level (complements .editorconfig, which only
+# guides editors). LF everywhere; let git auto-detect text vs binary.
+* text=auto eol=lf
+
+# Explicit binary/text classifications.
+*.csv text
+*.png binary
+*.jpg binary
+*.ico binary
+
+# Linguist: keep the generated lockfile out of language stats and collapse its diffs;
+# mark docs as documentation so they don't skew the repo's language breakdown.
+uv.lock linguist-generated=true
+docs/** linguist-documentation
+
+# export-ignore: keep dev-only tooling out of `git archive` tarballs.
+.github/        export-ignore
+.githooks/      export-ignore
+.claude/        export-ignore
+scripts/        export-ignore
+.editorconfig   export-ignore
+.pre-commit-config.yaml export-ignore
+.markdownlint-cli2.jsonc export-ignore

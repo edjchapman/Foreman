@@ -1,0 +1,41 @@
+# Keep the build context (and so the image) lean — COPY . . would otherwise ship
+# the host .venv (clobbering the image's interpreter env), git history, and caches.
+
+# Version control / CI / hooks
+.git
+.github
+.githooks
+.gitignore
+.gitattributes
+
+# Python virtualenv + caches (the .venv exclusion is the headline win)
+.venv
+**/__pycache__/
+*.py[cod]
+.pytest_cache
+.ruff_cache
+.mypy_cache
+
+# Coverage / collected static
+.coverage
+htmlcov
+staticfiles
+
+# Local env / secrets
+.env
+
+# Editors / OS
+.idea
+.vscode
+.DS_Store
+
+# Dev-only content not needed in the runtime image
+docs
+standups
+.pre-commit-config.yaml
+.editorconfig
+.markdownlint-cli2.jsonc
+
+# Claude / local tooling
+.claude
+.mcp.json

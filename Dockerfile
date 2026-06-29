@@ -8,9 +8,10 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# Install deps first (layer-cached) — copy only the manifest.
-COPY pyproject.toml ./
-RUN uv sync --no-dev
+# Install deps first (layer-cached) — copy the manifest + lock for a frozen,
+# reproducible sync (uses exactly the pinned versions; never re-resolves).
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev
 
 # App code.
 COPY . .

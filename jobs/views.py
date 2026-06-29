@@ -57,6 +57,6 @@ class HealthView(APIView):
             with connection.cursor() as cursor:
                 cursor.execute("SELECT 1")
                 cursor.fetchone()
-        except Exception:
+        except Exception:  # noqa: BLE001 — liveness probe: any DB error means unhealthy
             return Response({"status": "unhealthy"}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         return Response({"status": "ok"})

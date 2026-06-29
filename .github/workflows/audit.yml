@@ -1,0 +1,32 @@
+name: audit
+
+# Dependency vulnerability audit (pip-audit). Kept separate from ci.yml on purpose:
+# it is network-dependent (queries the OSV / PyPI advisory DB) and must run on a
+# SCHEDULE, so a CVE disclosed after a merge reddens CI even with zero code change.
+# `make ci` stays offline + deterministic.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    # Mondays 09:00 UTC — matches scheduled-check; re-audits the locked deps weekly.
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: audit-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    name: pip-audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+        with:
+          python-version: "3.12"
+      - name: Audit dependencies
+        run: make audit
