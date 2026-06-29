@@ -68,13 +68,27 @@ CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", REDIS_URL)
 CELERY_TASK_ALWAYS_EAGER = os.environ.get("CELERY_TASK_ALWAYS_EAGER", "false").lower() == "true"
 CELERY_TASK_EAGER_PROPAGATES = True
 CELERY_TIMEZONE = "UTC"
-# Beat drives the outbox relay: poll PENDING events and publish them to the broker.
+# Beat drives two pollers: the outbox relay (publish PENDING events) and the M3
+# recovery scan (re-dispatch jobs whose retry backoff has elapsed).
 CELERY_BEAT_SCHEDULE = {
     "dispatch-outbox": {
         "task": "jobs.dispatch_outbox",
         "schedule": float(os.environ.get("OUTBOX_POLL_SECONDS", "1.0")),
     },
+    "recover-jobs": {
+        "task": "jobs.recover_jobs",
+        "schedule": float(os.environ.get("RECOVER_POLL_SECONDS", "5.0")),
+    },
 }
+
+# === M3 reliability: retries, backoff, dead-letter, lease ===
+# Worker-owned retry/lease state lives in Postgres (Job.attempts / available_at /
+# leased_until / lease_token), not the broker — queryable and broker-restart-safe.
+JOB_MAX_ATTEMPTS = int(os.environ.get("JOB_MAX_ATTEMPTS", "3"))
+JOB_RETRY_BASE_SECONDS = float(os.environ.get("JOB_RETRY_BASE_SECONDS", "2"))
+JOB_RETRY_MAX_SECONDS = float(os.environ.get("JOB_RETRY_MAX_SECONDS", "300"))
+JOB_LEASE_SECONDS = float(os.environ.get("JOB_LEASE_SECONDS", "120"))
+JOB_REQUEUE_VISIBILITY_SECONDS = float(os.environ.get("JOB_REQUEUE_VISIBILITY_SECONDS", "60"))
 
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [
