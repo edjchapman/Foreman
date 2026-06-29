@@ -68,6 +68,20 @@ CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", REDIS_URL)
 CELERY_TASK_ALWAYS_EAGER = os.environ.get("CELERY_TASK_ALWAYS_EAGER", "false").lower() == "true"
 CELERY_TASK_EAGER_PROPAGATES = True
 CELERY_TIMEZONE = "UTC"
+# At-least-once delivery for the worker: ack a message only after the task finishes
+# (acks_late) and re-queue it if the worker is killed mid-task (reject_on_worker_lost),
+# so a crash can't silently drop a job. prefetch=1 keeps at most one unacked task per
+# worker, so a SIGKILL strands at most one lease for the reaper to reclaim. The Redis
+# visibility_timeout is the broker-level redelivery backstop; the lease reaper is the
+# faster recovery path (see JOB_LEASE_SECONDS and ADR 0002).
+CELERY_TASK_ACKS_LATE = os.environ.get("CELERY_TASK_ACKS_LATE", "true").lower() == "true"
+CELERY_TASK_REJECT_ON_WORKER_LOST = (
+    os.environ.get("CELERY_TASK_REJECT_ON_WORKER_LOST", "true").lower() == "true"
+)
+CELERY_WORKER_PREFETCH_MULTIPLIER = int(os.environ.get("CELERY_WORKER_PREFETCH_MULTIPLIER", "1"))
+CELERY_BROKER_TRANSPORT_OPTIONS = {
+    "visibility_timeout": int(os.environ.get("CELERY_VISIBILITY_TIMEOUT", "3600")),
+}
 # Beat drives two pollers: the outbox relay (publish PENDING events) and the M3
 # recovery scan (re-dispatch jobs whose retry backoff has elapsed).
 CELERY_BEAT_SCHEDULE = {

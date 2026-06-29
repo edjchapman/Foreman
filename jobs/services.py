@@ -7,6 +7,7 @@ together or not at all — in one place the API and tests can both call.
 from __future__ import annotations
 
 from django.db import IntegrityError, transaction
+from django.utils import timezone
 
 from .models import Job, OutboxEvent
 
@@ -44,3 +45,22 @@ def submit_job(*, job_type: str, payload: dict, idempotency_key: str | None) -> 
         raise
 
     return job, True
+
+
+def redrive_dead_letter(job_ids: list[str]) -> int:
+    """Reset DEAD_LETTER jobs to PENDING for another run; returns the count redriven.
+
+    ``attempts`` resets to give a fresh retry budget and ``available_at`` is set to now,
+    so the ``recover_jobs`` requeue scan re-dispatches the job — no new dispatch path.
+    Non-existent or non-DEAD_LETTER ids are ignored (not counted).
+    """
+    now = timezone.now()
+    return Job.objects.filter(pk__in=job_ids, status=Job.Status.DEAD_LETTER).update(
+        status=Job.Status.PENDING,
+        attempts=0,
+        available_at=now,
+        leased_until=None,
+        lease_token=None,
+        error="",
+        updated_at=now,
+    )

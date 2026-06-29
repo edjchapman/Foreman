@@ -89,12 +89,13 @@ def process_job(job_id: str) -> str:
 
 @shared_task(name="jobs.recover_jobs")
 def recover_jobs() -> dict:
-    """Re-dispatch jobs whose backoff has elapsed (Beat-scheduled).
+    """Recover stuck or scheduled jobs (Beat-scheduled).
 
-    Lease-expiry reaping (recovering a job whose worker died mid-process) joins this
-    task in the next M3 PR; today it owns the retry-requeue lane only.
+    Two lanes: reap expired leases (jobs whose worker died mid-process) back into the
+    retry flow, then re-dispatch jobs whose backoff has elapsed. Reaping first means a
+    just-reclaimed job (available_at=now) is re-dispatched in the same tick.
     """
-    return {"requeued": _requeue_due_retries()}
+    return {"reaped": _reap_expired_leases(), "requeued": _requeue_due_retries()}
 
 
 def _claim_pending(job_id: str) -> Job | None:
@@ -256,6 +257,44 @@ def _requeue_due_retries() -> int:
     if requeued:
         logger.info("recover_jobs requeued %d job(s)", requeued)
     return requeued
+
+
+def _reap_expired_leases() -> int:
+    """Reclaim jobs whose lease expired — their worker died mid-process.
+
+    The PENDING-guard blocks the broker from redelivering a PROCESSING job (never two
+    live workers on one), so a crashed worker's job is recoverable only here. Treat it
+    as a transient failure: requeue for immediate retry, or dead-letter if attempts are
+    spent. The crashed attempt already consumed its increment at claim, so attempts is
+    left untouched.
+    """
+    reaped = 0
+    with transaction.atomic():
+        stale = _lock_for_claim(
+            Job.objects.filter(status=Job.Status.PROCESSING, leased_until__lt=timezone.now())
+        )
+        for job in list(stale[:OUTBOX_BATCH_SIZE]):
+            _recover_one_lease(job)
+            reaped += 1
+    if reaped:
+        logger.warning("recover_jobs reaped %d expired lease(s)", reaped)
+    return reaped
+
+
+def _recover_one_lease(job: Job) -> None:
+    """Dead-letter a lease-expired job if its attempts are spent, else requeue it now."""
+    if job.attempts >= settings.JOB_MAX_ATTEMPTS:
+        _terminal(job, Job.Status.DEAD_LETTER, error="lease expired")
+    else:
+        _fenced_update(
+            job,
+            status=Job.Status.PENDING,
+            available_at=timezone.now(),
+            leased_until=None,
+            lease_token=None,
+            progress=0,
+            error="lease expired",
+        )
 
 
 def _lock_for_claim(queryset):

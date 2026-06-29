@@ -7,3 +7,4 @@ older ones explicitly rather than by edit.
 | ADR | Title | Status |
 |-----|-------|--------|
 | [0001](0001-transactional-outbox.md) | Transactional outbox for job dispatch | Accepted |
+| [0002](0002-retries-dlq-lease.md) | Retries, dead-letter, and lease-based crash recovery | Accepted |
