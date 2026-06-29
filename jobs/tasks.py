@@ -1,21 +1,32 @@
-"""Celery tasks for the jobs app: the outbox relay and the worker.
+"""Celery tasks for the jobs app: the outbox relay, the worker, and recovery.
 
-`dispatch_outbox` (scheduled by Celery Beat) claims PENDING outbox rows and
-publishes one `process_job` message each, then marks them DISPATCHED. `process_job`
-ingests the job's CSV into PropertyRecords and drives the job to a terminal state.
+`dispatch_outbox` (Beat) claims PENDING outbox rows and publishes one `process_job`
+message each, then marks them DISPATCHED. `process_job` ingests the job's CSV into
+PropertyRecords and drives it to a terminal state — retrying transient failures with
+capped, jittered backoff and dead-lettering once attempts are exhausted. `recover_jobs`
+(Beat) re-dispatches jobs whose backoff has elapsed.
 
-Reliability hardening — retries with backoff, dead-letter, lease-based worker
-idempotency — is M3. M2 relies on at-least-once delivery plus the PENDING-guard.
+Retry/lease state lives in Postgres (Job.attempts / available_at / leased_until /
+lease_token), never the broker, so it stays queryable and survives a broker restart.
+Lease-expiry reaping (crash recovery) joins `recover_jobs` in the next M3 PR.
 """
 
 from __future__ import annotations
 
+import logging
+import random
+import uuid
+from datetime import timedelta
+
 from celery import shared_task
+from django.conf import settings
 from django.db import connection, transaction
 from django.utils import timezone
 
-from .ingest import load_csv_text, parse_rows
+from .ingest import IngestError, load_csv_text, parse_rows
 from .models import Job, OutboxEvent, PropertyRecord
+
+logger = logging.getLogger(__name__)
 
 OUTBOX_BATCH_SIZE = 100
 PROGRESS_CHUNK = 50
@@ -51,46 +62,143 @@ def dispatch_outbox() -> int:
 
 @shared_task(name="jobs.process_job")
 def process_job(job_id: str) -> str:
-    """Ingest a job's CSV and drive it PENDING → PROCESSING → SUCCEEDED|FAILED.
+    """Ingest a job's CSV and drive it to a terminal state.
 
-    Returns a short outcome string. A non-PENDING job is a no-op, so a redelivered
-    message (at-least-once) does not reprocess — the *effect* stays once.
+    PENDING → PROCESSING → SUCCEEDED, or on failure either FAILED (permanent — poison
+    input that can never succeed) or, for a transient error, a backoff retry until
+    `JOB_MAX_ATTEMPTS` is reached and the job is dead-lettered. A non-PENDING job is a
+    no-op, so a redelivered message never reprocesses.
     """
-    if not _claim_pending(job_id):
+    job = _claim_pending(job_id)
+    if job is None:
         return "skipped"
 
     try:
-        result = _import_properties(job_id)
-    except Exception as exc:  # noqa: BLE001 — M3 narrows this and adds retry/DLQ
-        Job.objects.filter(pk=job_id).update(
-            status=Job.Status.FAILED, error=str(exc), updated_at=timezone.now()
-        )
+        result = _import_properties(job)
+    except IngestError as exc:
+        _terminal(job, Job.Status.FAILED, error=str(exc))
+        logger.info("job %s failed permanently: %s", job.id, exc)
         return "failed"
+    except Exception as exc:  # noqa: BLE001 — transient: retry with backoff or dead-letter
+        return _handle_transient(job, exc)
 
-    Job.objects.filter(pk=job_id).update(
-        status=Job.Status.SUCCEEDED,
-        progress=100,
-        result=result,
-        error="",
-        updated_at=timezone.now(),
-    )
+    _terminal(job, Job.Status.SUCCEEDED, progress=100, result=result)
+    logger.info("job %s succeeded on attempt %d", job.id, job.attempts)
     return "succeeded"
 
 
-def _claim_pending(job_id: str) -> bool:
-    """Atomically flip a PENDING job to PROCESSING. Returns False if already taken."""
+@shared_task(name="jobs.recover_jobs")
+def recover_jobs() -> dict:
+    """Re-dispatch jobs whose backoff has elapsed (Beat-scheduled).
+
+    Lease-expiry reaping (recovering a job whose worker died mid-process) joins this
+    task in the next M3 PR; today it owns the retry-requeue lane only.
+    """
+    return {"requeued": _requeue_due_retries()}
+
+
+def _claim_pending(job_id: str) -> Job | None:
+    """Atomically claim a PENDING job: flip it to PROCESSING under a fresh lease.
+
+    Returns the claimed Job — so the caller reads attempts/lease_token without a
+    re-query — or None if the job was already taken or is no longer PENDING.
+    """
     with transaction.atomic():
         job = _lock_for_claim(Job.objects.filter(pk=job_id)).first()
         if job is None or job.status != Job.Status.PENDING:
-            return False
+            return None
         job.status = Job.Status.PROCESSING
         job.attempts += 1
-        job.save(update_fields=["status", "attempts", "updated_at"])
-        return True
+        job.leased_until = timezone.now() + timedelta(seconds=settings.JOB_LEASE_SECONDS)
+        job.lease_token = uuid.uuid4()
+        job.available_at = None
+        job.save(
+            update_fields=[
+                "status",
+                "attempts",
+                "leased_until",
+                "lease_token",
+                "available_at",
+                "updated_at",
+            ]
+        )
+        return job
 
 
-def _import_properties(job_id: str) -> dict:
-    job = Job.objects.get(pk=job_id)
+def _handle_transient(job: Job, exc: Exception) -> str:
+    """Schedule a backoff retry, or dead-letter once attempts are exhausted."""
+    if job.attempts >= settings.JOB_MAX_ATTEMPTS:
+        _terminal(job, Job.Status.DEAD_LETTER, error=str(exc))
+        logger.warning("job %s dead-lettered after %d attempts: %s", job.id, job.attempts, exc)
+        return "dead_letter"
+
+    delay = _retry_delay(job.attempts)
+    _fenced_update(
+        job,
+        status=Job.Status.PENDING,
+        available_at=timezone.now() + timedelta(seconds=delay),
+        leased_until=None,
+        lease_token=None,
+        progress=0,
+        error=str(exc),
+    )
+    logger.info("job %s retry scheduled in %.1fs (attempt %d)", job.id, delay, job.attempts)
+    return "retry"
+
+
+def _terminal(
+    job: Job,
+    status: str,
+    *,
+    progress: int | None = None,
+    result: dict | None = None,
+    error: str = "",
+) -> None:
+    """Move the job to a terminal state, releasing the lease (fenced write)."""
+    fields: dict = {
+        "status": status,
+        "leased_until": None,
+        "lease_token": None,
+        "available_at": None,
+        "error": error,
+    }
+    if progress is not None:
+        fields["progress"] = progress
+    if result is not None:
+        fields["result"] = result
+    _fenced_update(job, **fields)
+
+
+def _fenced_update(job: Job, **fields) -> int:
+    """Write `fields` to the job only while it is still PROCESSING under our token.
+
+    The status + lease_token guard fences a reclaimed-then-resumed slow worker: once
+    the reaper has handed the job to someone else, this stale write matches zero rows
+    and is silently discarded instead of clobbering the row.
+    """
+    fields["updated_at"] = timezone.now()
+    return Job.objects.filter(
+        pk=job.id,
+        status=Job.Status.PROCESSING,
+        lease_token=job.lease_token,
+    ).update(**fields)
+
+
+def _retry_delay(attempts: int) -> float:
+    """Exponential backoff with full jitter, capped at JOB_RETRY_MAX_SECONDS.
+
+    `attempts` is the count already made (>=1), so the ceiling doubles each time.
+    Full jitter (uniform 0..ceiling) spreads simultaneous failures across the window
+    instead of retrying them in lockstep.
+    """
+    ceiling = min(
+        settings.JOB_RETRY_MAX_SECONDS,
+        settings.JOB_RETRY_BASE_SECONDS * (2 ** (attempts - 1)),
+    )
+    return random.uniform(0, ceiling)
+
+
+def _import_properties(job: Job) -> dict:
     records, errors = parse_rows(load_csv_text(job.payload))
     _bulk_create_with_progress(job, records)
     return {
@@ -117,6 +225,37 @@ def _bulk_create_with_progress(job: Job, records: list[dict]) -> None:
         Job.objects.filter(pk=job.id).update(
             progress=int(done / total * 100), updated_at=timezone.now()
         )
+
+
+def _requeue_due_retries() -> int:
+    """Dispatch `process_job` for each PENDING job whose backoff has elapsed.
+
+    Keyed on `available_at` (set only on a scheduled retry), so this lane never
+    touches a brand-new job — those have `available_at IS NULL` and belong to the
+    outbox. Before publishing, push `available_at` forward by a visibility window so a
+    job isn't re-dispatched every tick while it waits to be claimed; the claim clears
+    it, and a lost message simply becomes due again after the window (self-healing).
+    """
+    now = timezone.now()
+    requeued = 0
+    with transaction.atomic():
+        due = _lock_for_claim(
+            Job.objects.filter(
+                status=Job.Status.PENDING,
+                available_at__isnull=False,
+                available_at__lte=now,
+            ).order_by("available_at")
+        )
+        for job in list(due[:OUTBOX_BATCH_SIZE]):
+            Job.objects.filter(pk=job.id).update(
+                available_at=now + timedelta(seconds=settings.JOB_REQUEUE_VISIBILITY_SECONDS),
+                updated_at=now,
+            )
+            process_job.delay(str(job.id))
+            requeued += 1
+    if requeued:
+        logger.info("recover_jobs requeued %d job(s)", requeued)
+    return requeued
 
 
 def _lock_for_claim(queryset):
