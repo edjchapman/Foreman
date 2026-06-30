@@ -14,6 +14,9 @@ jobs:
   ci:
     name: lint + test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Codecov OIDC (tokenless upload)
 
     services:
       postgres:
@@ -45,3 +48,9 @@ jobs:
         run: uv run python manage.py migrate
       - name: Lint + test
         run: make ci
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7
+        with:
+          files: ./coverage.xml
+          use_oidc: true
+          fail_ci_if_error: false # flip to true once the Codecov app is authorized + green

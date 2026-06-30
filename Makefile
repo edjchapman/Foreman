@@ -47,7 +47,7 @@ typecheck: ## Static type-check (mypy strict + django/DRF stubs; no DB needed)
 	uv run mypy
 
 ci: lint typecheck ## What CI runs: lint + types + coverage-gated tests (fails under 90%)
-	uv run pytest --cov --cov-report=term-missing --cov-fail-under=90
+	uv run pytest --cov --cov-report=term-missing --cov-report=xml --cov-fail-under=90
 
 audit: ## Audit dependencies for known advisories (CVEs); fails on any finding
 	uv run --group audit pip-audit --strict
