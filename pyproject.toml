@@ -87,7 +87,12 @@ DJANGO_SETTINGS_MODULE = "config.settings"
 python_files = ["test_*.py"]
 # Coverage flags live in `make ci` (not here) so local `make test` runs stay fast
 # and aren't blocked by the threshold mid-development.
-addopts = "-q --reuse-db"
+addopts = "-q --reuse-db --strict-markers --strict-config"
+# An xpassing xfail is a failure (the bug was fixed — drop the marker).
+xfail_strict = true
+# Warnings are errors, so a deprecated API or a misconfigured test fails loudly.
+# Add module-scoped ignores ONLY for genuine third-party deprecations we don't own.
+filterwarnings = ["error"]
 
 [tool.coverage.run]
 source = ["jobs", "config"]

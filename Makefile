@@ -1,4 +1,4 @@
-.PHONY: help up down build logs migrate makemigrations test lint fmt typecheck audit ci shell \
+.PHONY: help up down build logs migrate makemigrations test lint fmt typecheck audit ci preflight shell \
         worker beat relay \
         check check-links check-anchors stack-check \
         check-commit-msg check-stale-branches sweep-branches lint-md
@@ -46,11 +46,14 @@ fmt: ## Auto-fix lint + format
 typecheck: ## Static type-check (mypy strict + django/DRF stubs; no DB needed)
 	uv run mypy
 
-ci: lint typecheck ## What CI runs: lint + types + coverage-gated tests (fails under 80%)
-	uv run pytest --cov --cov-report=term-missing --cov-fail-under=80
+ci: lint typecheck ## What CI runs: lint + types + coverage-gated tests (fails under 90%)
+	uv run pytest --cov --cov-report=term-missing --cov-fail-under=90
 
 audit: ## Audit dependencies for known advisories (CVEs); fails on any finding
 	uv run --group audit pip-audit --strict
+
+preflight: ci audit check ## Full pre-PR gate: ci (lint + types + tests) + audit + docs
+	@echo "preflight: all gates green — safe to push."
 
 shell: ## Django shell
 	uv run python manage.py shell

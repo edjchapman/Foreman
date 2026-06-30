@@ -1,6 +1,5 @@
-"""M3 reliability tests: idempotent re-import, retries, backoff, dead-letter.
-
-Lease-expiry crash recovery (the reaper) lands in the next M3 PR.
+"""M3 reliability tests: idempotent re-import, retries, backoff, dead-letter,
+lease-expiry crash recovery (the reaper), and operator redrive.
 """
 
 import uuid
@@ -141,25 +140,29 @@ def test_recover_jobs_requeues_only_due_retries(monkeypatch):
 # --- Backoff curve ----------------------------------------------------------------
 
 
-def test_retry_delay_is_exponential_and_capped(monkeypatch):
+@pytest.mark.parametrize(("attempts", "multiplier"), [(1, 1), (2, 2), (3, 4)])
+def test_retry_delay_doubles_each_attempt(monkeypatch, attempts, multiplier):
     # Pin the jitter to its ceiling to assert the exponential schedule exactly.
     monkeypatch.setattr(tasks.random, "uniform", lambda lo, hi: hi)
-    base = settings.JOB_RETRY_BASE_SECONDS
-
-    assert tasks._retry_delay(1) == base
-    assert tasks._retry_delay(2) == base * 2
-    assert tasks._retry_delay(3) == base * 4
-    assert tasks._retry_delay(99) == settings.JOB_RETRY_MAX_SECONDS  # cap holds
+    assert tasks._retry_delay(attempts) == settings.JOB_RETRY_BASE_SECONDS * multiplier
 
 
-def test_retry_delay_stays_within_the_jitter_window():
-    for attempts in range(1, 6):
-        ceiling = min(
-            settings.JOB_RETRY_MAX_SECONDS,
-            settings.JOB_RETRY_BASE_SECONDS * 2 ** (attempts - 1),
-        )
-        for _ in range(20):
-            assert 0 <= tasks._retry_delay(attempts) <= ceiling
+def test_retry_delay_is_capped(monkeypatch):
+    # A high attempt count saturates at the ceiling, not base * 2**(n-1).
+    monkeypatch.setattr(tasks.random, "uniform", lambda lo, hi: hi)
+    assert tasks._retry_delay(99) == settings.JOB_RETRY_MAX_SECONDS
+
+
+# A loop (not parametrize) for the Monte-Carlo samples: 20 draws per attempt assert one
+# property, so a loop reads better than 100 near-identical parametrized cases.
+@pytest.mark.parametrize("attempts", [1, 2, 3, 4, 5])
+def test_retry_delay_stays_within_the_jitter_window(attempts):
+    ceiling = min(
+        settings.JOB_RETRY_MAX_SECONDS,
+        settings.JOB_RETRY_BASE_SECONDS * 2 ** (attempts - 1),
+    )
+    for _ in range(20):
+        assert 0 <= tasks._retry_delay(attempts) <= ceiling
 
 
 # --- Lease-based crash recovery (the reaper) --------------------------------------

@@ -4,11 +4,11 @@
 message each, then marks them DISPATCHED. `process_job` ingests the job's CSV into
 PropertyRecords and drives it to a terminal state — retrying transient failures with
 capped, jittered backoff and dead-lettering once attempts are exhausted. `recover_jobs`
-(Beat) re-dispatches jobs whose backoff has elapsed.
+(Beat) reaps expired leases (crashed workers) and re-dispatches jobs whose backoff elapsed.
 
 Retry/lease state lives in Postgres (Job.attempts / available_at / leased_until /
 lease_token), never the broker, so it stays queryable and survives a broker restart.
-Lease-expiry reaping (crash recovery) joins `recover_jobs` in the next M3 PR.
+The `lease_token` fences a reclaimed-then-resumed worker's stale write (see `_fenced_update`).
 """
 
 from __future__ import annotations

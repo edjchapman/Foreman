@@ -23,7 +23,7 @@ class JobViewSet(
     Submitting records the job as PENDING and, in the same transaction, an outbox
     event the relay publishes to the worker (see `jobs.services.submit_job`). An
     optional `Idempotency-Key` header makes resubmission safe at the API edge;
-    worker-side exactly-once processing lands in M3.
+    worker-side exactly-once *effect* comes from the idempotent re-import (see ADR 0002).
     """
 
     queryset = Job.objects.all()
