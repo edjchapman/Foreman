@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/edjchapman/foreman/actions/workflows/ci.yml/badge.svg)](https://github.com/edjchapman/foreman/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/edjchapman/foreman/actions/workflows/codeql.yml/badge.svg)](https://github.com/edjchapman/foreman/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/edjchapman/foreman/badge)](https://securityscorecards.dev/viewer/?uri=github.com/edjchapman/foreman)
 [![codecov](https://codecov.io/gh/edjchapman/foreman/branch/main/graph/badge.svg)](https://codecov.io/gh/edjchapman/foreman)
 [![Release](https://img.shields.io/github/v/release/edjchapman/foreman?sort=semver)](https://github.com/edjchapman/foreman/releases)
 [![License: MIT](https://img.shields.io/github/license/edjchapman/foreman)](LICENSE)
