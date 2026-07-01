@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/edjchapman/foreman/compare/v0.4.0...v0.5.0) (2026-07-01)
+
+
+### Features
+
+* **ui:** minimal live job-status demo page ([#38](https://github.com/edjchapman/foreman/issues/38)) ([bc285c0](https://github.com/edjchapman/foreman/commit/bc285c0363d56e1318d03c8cc6b6f82994c1a537))
+
 ## [0.4.0](https://github.com/edjchapman/foreman/compare/v0.3.0...v0.4.0) (2026-07-01)
 
 
