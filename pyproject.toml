@@ -8,9 +8,10 @@ dependencies = [
     "djangorestframework>=3.15",
     "psycopg[binary]>=3.3.4",
     "dj-database-url>=2.2",
-    "gunicorn>=23.0",
     "celery[redis]>=5.6.3",
     "prometheus-client>=0.21",
+    "channels[daphne]>=4.3.2",
+    "channels-redis>=4.3.0",
 ]
 
 [dependency-groups]
@@ -28,6 +29,7 @@ dev = [
     "django-stubs[compatible-mypy]>=6.0.6,<6.1",
     "djangorestframework-stubs[compatible-mypy]>=3.17.0",
     "celery-types>=0.26.0",
+    "pytest-asyncio>=1.4.0",
 ]
 
 # Application (not a library) — don't try to build/install the project itself.
@@ -83,9 +85,20 @@ ignore_errors = true
 module = ["jobs.tests.*"]
 ignore_errors = true
 
+# Channels / channels-redis / daphne ship no type stubs; ignore the missing imports (the
+# async consumer's untyped base is handled by one scoped `# type: ignore[misc]`).
+[[tool.mypy.overrides]]
+module = ["channels.*", "channels_redis.*", "daphne.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings"
 python_files = ["test_*.py"]
+# Async consumer tests run under pytest-asyncio in auto mode (no per-test marker needed, so
+# --strict-markers stays green); pinning the fixture loop scope silences a pytest-asyncio
+# PytestDeprecationWarning that filterwarnings=error would otherwise turn into a failure.
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 # Coverage flags live in `make ci` (not here) so local `make test` runs stay fast
 # and aren't blocked by the threshold mid-development.
 addopts = "-q --reuse-db --strict-markers --strict-config"

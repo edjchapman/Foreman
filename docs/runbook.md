@@ -6,7 +6,7 @@ read the logs, and what to do when something goes wrong. The *why* lives in the
 
 ## Services
 
-- **web** — the DRF API; also serves `/healthz`, `/readyz`, `/metrics`.
+- **web** — the DRF API + WebSocket stream; serves `/healthz`, `/readyz`, `/metrics`, and `ws/jobs/<id>/`.
 - **worker** — Celery worker running `process_job` (the CSV import and terminal state).
 - **beat** — Celery Beat; drives two pollers, `dispatch_outbox` (~1s) and `recover_jobs` (~5s).
 
@@ -20,6 +20,7 @@ broker, so it stays queryable and survives a broker restart.
 | `GET /healthz` | Liveness | Process can serve requests (no dependency I/O). | Orchestrator **restarts** the pod. |
 | `GET /readyz` | Readiness | Database **and** broker reachable; `503` otherwise. | Orchestrator **stops routing** traffic (does not restart). |
 | `GET /metrics` | Metrics | Prometheus exposition of the gauges below. | — |
+| `WS /ws/jobs/{id}/` | Realtime | Snapshot on connect, then live status/progress deltas. | Closes `4404` for an unknown job; a channel-layer outage stops updates (jobs unaffected) — clients poll the REST endpoint. |
 
 Liveness and readiness are deliberately distinct — a DB or broker blip must not restart
 pods. See [ADR 0003](adr/0003-observability.md).
@@ -44,6 +45,20 @@ foreman_outbox_oldest_pending_age_seconds > 30
 foreman_jobs_processing_oldest_age_seconds > 300
 ```
 
+## Realtime (WebSockets)
+
+Clients stream a single job at `ws/jobs/<id>/` — an authoritative snapshot on connect, then
+status/progress deltas. Fan-out rides the same transitions as the logs (see `jobs.realtime`).
+The channel layer is Redis (`CHANNELS_REDIS_URL`, default `REDIS_URL`); broadcasts are
+**best-effort**, so a channel-layer outage stops updates but never fails a job — clients fall
+back to `GET /api/v1/jobs/{id}/`. Sanity-check a running stack with `websocat`:
+
+```bash
+websocat ws://localhost:8000/ws/jobs/<id>/
+```
+
+There are no WebSocket metrics yet (deferred — see [ADR 0004](adr/0004-realtime-websockets.md)).
+
 ## Reading the logs
 
 Logs are one JSON object per line. `event` is a stable name; correlate a job across events
@@ -58,7 +73,8 @@ docker compose logs worker | jq 'select(.job_id == "<id>")'
 ```
 
 Event names: `job.claimed`, `job.succeeded`, `job.failed` (permanent), `job.retry_scheduled`,
-`job.dead_letter`, plus `recover.requeued` / `recover.reaped` from the recovery scan.
+`job.dead_letter`, plus `recover.requeued` / `recover.reaped` from the recovery scan and
+`realtime.notify_failed` if a WebSocket broadcast is dropped.
 
 ## Failure taxonomy
 
@@ -113,3 +129,4 @@ reliability tunables' rationale.
 | `JOB_LEASE_SECONDS` | 120 | Worker lease TTL while `PROCESSING`. |
 | `RECOVER_POLL_SECONDS` | 5 | How often `recover_jobs` runs. |
 | `DJANGO_LOG_FORMAT` | `json` | Log output format: `json` or `console`. |
+| `CHANNELS_REDIS_URL` | `REDIS_URL` | Redis for the WebSocket channel layer. |

@@ -14,6 +14,7 @@ class JobSerializer(serializers.ModelSerializer):
             "status",
             "payload",
             "progress",
+            "attempts",
             "result",
             "error",
             "created_at",

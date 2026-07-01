@@ -28,6 +28,7 @@ from django.utils import timezone
 
 from .ingest import IngestError, load_csv_text, parse_rows
 from .models import Job, OutboxEvent, PropertyRecord
+from .realtime import notify_job
 
 logger = logging.getLogger(__name__)
 
@@ -97,12 +98,14 @@ def process_job(job_id: str) -> str:
     except IngestError as exc:
         _terminal(job, Job.Status.FAILED, error=str(exc))
         _log_job("job.failed", job, error_class=type(exc).__name__, error=str(exc))
+        notify_job(job)
         return "failed"
     except Exception as exc:  # noqa: BLE001 — transient: retry with backoff or dead-letter
         return _handle_transient(job, exc)
 
     _terminal(job, Job.Status.SUCCEEDED, progress=100, result=result)
     _log_job("job.succeeded", job, latency_ms=_ms(started), rows_imported=result["rows_imported"])
+    notify_job(job)
     return "succeeded"
 
 
@@ -143,6 +146,7 @@ def _claim_pending(job_id: str) -> Job | None:
             ]
         )
         _log_job("job.claimed", job)
+        transaction.on_commit(lambda: notify_job(job))
         return job
 
 
@@ -151,6 +155,7 @@ def _handle_transient(job: Job, exc: Exception) -> str:
     if job.attempts >= settings.JOB_MAX_ATTEMPTS:
         _terminal(job, Job.Status.DEAD_LETTER, error=str(exc))
         _log_job("job.dead_letter", job, level=logging.WARNING, error_class=type(exc).__name__)
+        notify_job(job)
         return "dead_letter"
 
     delay = _retry_delay(job.attempts)
@@ -164,6 +169,7 @@ def _handle_transient(job: Job, exc: Exception) -> str:
         error=str(exc),
     )
     _log_job("job.retry_scheduled", job, retry_in_s=round(delay, 1))
+    notify_job(job)
     return "retry"
 
 
@@ -246,6 +252,7 @@ def _bulk_create_with_progress(job: Job, records: list[dict]) -> None:
         Job.objects.filter(pk=job.id).update(
             progress=int(done / total * 100), updated_at=timezone.now()
         )
+        notify_job(job)
 
 
 def _requeue_due_retries() -> int:
@@ -306,6 +313,7 @@ def _recover_one_lease(job: Job) -> None:
     if job.attempts >= settings.JOB_MAX_ATTEMPTS:
         _terminal(job, Job.Status.DEAD_LETTER, error="lease expired")
         _log_job("job.dead_letter", job, level=logging.WARNING, reason="lease expired")
+        transaction.on_commit(lambda: notify_job(job))
     else:
         _fenced_update(
             job,
@@ -316,6 +324,7 @@ def _recover_one_lease(job: Job) -> None:
             progress=0,
             error="lease expired",
         )
+        transaction.on_commit(lambda: notify_job(job))
 
 
 def _lock_for_claim[M: Model](queryset: QuerySet[M]) -> QuerySet[M]:

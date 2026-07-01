@@ -15,7 +15,7 @@
 
 Submit a job (e.g. a property CSV import) → the API records it atomically and emits a domain event through a **transactional outbox** → **idempotent workers** process it with **retries** and a **dead-letter** path, recovering on their own from a worker crash → progress streams over **WebSockets** *(M4)* before a downloadable report.
 
-> Portfolio project — the focus is the *reliability and operability* story, not feature breadth. **Milestones 1–3 are complete**, and **M4's observability slice has landed** (structured logging, Prometheus metrics, liveness/readiness, [runbook](docs/runbook.md)); the realtime WebSocket UI is next.
+> Portfolio project — the focus is the *reliability and operability* story, not feature breadth. **Milestones 1–3 are complete**, and **M4's backend is done** — observability (structured logging, Prometheus metrics, liveness/readiness) plus **live job status over WebSockets** ([ADR 0004](docs/adr/0004-realtime-websockets.md)); the React UI is next.
 
 ## Contents
 
@@ -38,6 +38,7 @@ Submit a job (e.g. a property CSV import) → the API records it atomically and 
 - **Crash recovery** — a worker lease + reaper reclaim a job whose worker died mid-flight, and a **fencing token** stops a resumed zombie worker from clobbering the row.
 - **Non-blocking, horizontal claims** — the relay and requeue scans use `SELECT … FOR UPDATE SKIP LOCKED`, so parallel workers claim disjoint rows without contending.
 - **Observable & operable** — structured JSON logs at every state transition, DB-derived Prometheus metrics (queue depth, dispatch lag, dead-letter count) on `/metrics`, split liveness/readiness probes, and an operator [runbook](docs/runbook.md). See [ADR 0003](docs/adr/0003-observability.md).
+- **Live status over WebSockets** — a job's `PENDING → … → terminal` transitions stream to `ws/jobs/<id>/` via Django Channels (snapshot on connect, then deltas). The fan-out is **best-effort**, so the realtime layer never changes whether a job succeeds. See [ADR 0004](docs/adr/0004-realtime-websockets.md).
 - **Run like a service** — `mypy --strict`, ruff (incl. bandit), a 90% coverage floor against a real PostgreSQL, ADRs, automated releases, and a hardened supply chain (see [Engineering practices](#engineering-practices)).
 
 ## Architecture
@@ -60,7 +61,7 @@ flowchart LR
     reaper[Lease reaper] -->|"reclaim expired lease"| worker
     operator([Operator]) -->|redrive| dlq
     worker -->|"→ SUCCEEDED / FAILED"| job
-    job -.->|"M4: live status"| client
+    job -->|"live status (WebSocket)"| client
 ```
 
 The **outbox** decouples submission from dispatch; the **relay** is a dumb publisher that never re-reads the job (so it can't race it); the **worker** owns idempotency, retries, and terminal state. See [ADR 0001](docs/adr/0001-transactional-outbox.md) and [ADR 0002](docs/adr/0002-retries-dlq-lease.md) for the rationale.
@@ -83,7 +84,7 @@ Failure modes and the crash-window analysis are documented in [ADR 0002](docs/ad
 
 ## Tech stack
 
-Python 3.12 · Django 6 + Django REST Framework · PostgreSQL 16 · Redis + Celery · structured logging + Prometheus metrics · Django Channels / WebSockets *(M4)* · Docker Compose · pytest · GitHub Actions.
+Python 3.12 · Django 6 + Django REST Framework · PostgreSQL 16 · Redis + Celery · structured logging + Prometheus metrics · Django Channels / WebSockets · Docker Compose · pytest · GitHub Actions.
 
 ## Quickstart
 
@@ -113,6 +114,9 @@ curl localhost:8000/api/v1/jobs/<id>/
 curl localhost:8000/healthz   # liveness
 curl localhost:8000/readyz    # readiness (DB + broker)
 curl localhost:8000/metrics   # Prometheus metrics
+
+# stream a job's live status (needs websocat)
+websocat ws://localhost:8000/ws/jobs/<id>/
 ```
 
 The default sample source (`sample:properties.csv`) resolves to a bundled fixture, so a job runs end-to-end with no external storage — watch it move `PENDING → PROCESSING → SUCCEEDED`, with `progress` and an import summary in `result`. Inline CSV via `payload.csv` also works; remote schemes (`s3://`, `https://`) are a later milestone.
@@ -129,6 +133,7 @@ The current API is `v1`:
 | `GET` | `/healthz` | Liveness — the process is up (no dependency I/O). |
 | `GET` | `/readyz` | Readiness — database + broker reachable (`503` if not). |
 | `GET` | `/metrics` | Prometheus metrics — queue depth, dispatch lag, dead-letter count. |
+| `WS` | `/ws/jobs/{id}/` | Live status/progress stream — snapshot on connect, then deltas. |
 
 A submitted job is recorded `PENDING` alongside its outbox event in one transaction; the relay publishes it and the worker drives it to `SUCCEEDED` (or `FAILED`).
 
@@ -147,7 +152,7 @@ Beyond the feature work, the repo is operated like a production service:
 - **M1 — walking skeleton** *(done)*: repo, Docker Compose, `Job` model, submit/track API, health check, tests + CI.
 - **M2 — async worker + transactional outbox** *(done)*: atomic job+event write, Beat relay, worker ingests the property CSV into `PropertyRecord`. See [ADR 0001](docs/adr/0001-transactional-outbox.md).
 - **M3 — reliability** *(done)*: worker-side idempotency (exactly-once effect), retries with backoff, dead-letter, lease-based crash recovery, operator redrive, documented failure modes. See [ADR 0002](docs/adr/0002-retries-dlq-lease.md).
-- **M4 — realtime UI + observability** *(in progress)*: **observability landed** — structured JSON logging, DB-derived Prometheus metrics, liveness/readiness probes, and an operator [runbook](docs/runbook.md) (see [ADR 0003](docs/adr/0003-observability.md)); **next** is React/TS + live WebSocket progress (Channels).
+- **M4 — realtime UI + observability** *(in progress)*: **backend done** — observability (structured logging, DB-derived Prometheus metrics, liveness/readiness, [runbook](docs/runbook.md); [ADR 0003](docs/adr/0003-observability.md)) and **live job status over WebSockets** (Channels; [ADR 0004](docs/adr/0004-realtime-websockets.md)); **next** is the React/TS UI.
 - **M5 — ship**: Cypress E2E, deploy + public demo, case study.
 
 ## Development

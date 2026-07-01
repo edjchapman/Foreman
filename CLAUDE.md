@@ -4,7 +4,7 @@ Event-driven job-processing platform (portfolio project). Flow: property-data im
 
 ## Stack
 
-Python 3.12, Django 6 + DRF, PostgreSQL 16, Redis + Celery, Django Channels (M4+), Docker Compose, structured JSON logging + `prometheus-client` metrics (M4), pytest + pytest-django + factory_boy + pytest-cov, ruff, mypy (+ django/DRF stubs), pip-audit, GitHub Actions.
+Python 3.12, Django 6 + DRF, PostgreSQL 16, Redis + Celery, Django Channels + WebSockets, Docker Compose (daphne/ASGI), structured JSON logging + `prometheus-client` metrics, pytest + pytest-django + pytest-asyncio + factory_boy + pytest-cov, ruff, mypy (+ django/DRF stubs), pip-audit, GitHub Actions.
 
 ## Commands
 
@@ -20,7 +20,7 @@ Python 3.12, Django 6 + DRF, PostgreSQL 16, Redis + Celery, Django Channels (M4+
 
 - `config/` — Django project. Settings are env-driven; the DB comes from `DATABASE_URL` via `dj-database-url` (Postgres by default). Structured JSON logging via `config/logformat.py` (`DJANGO_LOG_FORMAT=console` for human-readable dev logs); see ADR 0003.
 - `config/celery.py` — Celery app; `config/__init__.py` exposes `celery_app` for autodiscovery. Celery/Redis settings are env-driven (`REDIS_URL`, `CELERY_*`); Beat schedules the outbox relay.
-- `jobs/` — the core app. `Job` model: UUID pk; states `PENDING → PROCESSING → SUCCEEDED|FAILED|DEAD_LETTER`; outbox-ready fields `idempotency_key` (unique-or-null) and `attempts`. `OutboxEvent` (transactional outbox) and `PropertyRecord` (imported rows). DRF `JobViewSet` (create/retrieve/list); `HealthView` (liveness `/healthz`), `ReadinessView` (`/readyz` — DB + broker), and `metrics.py` (`/metrics` — DB-derived Prometheus gauges).
+- `jobs/` — the core app. `Job` model: UUID pk; states `PENDING → PROCESSING → SUCCEEDED|FAILED|DEAD_LETTER`; outbox-ready fields `idempotency_key` (unique-or-null) and `attempts`. `OutboxEvent` (transactional outbox) and `PropertyRecord` (imported rows). DRF `JobViewSet` (create/retrieve/list); `HealthView` (liveness `/healthz`), `ReadinessView` (`/readyz` — DB + broker), and `metrics.py` (`/metrics` — DB-derived Prometheus gauges). Realtime: `consumers.py`/`routing.py` stream live status over WebSockets, `realtime.py`'s `notify_job` is the sync→async broadcast boundary, and `config/asgi.py` is a Channels `ProtocolTypeRouter` (ADR 0004).
   - `services.py` — `submit_job` writes `Job` + `OutboxEvent` atomically.
   - `tasks.py` — `dispatch_outbox` (Beat relay, claims PENDING rows with `SKIP LOCKED`) and `process_job` (worker: PENDING→PROCESSING→SUCCEEDED|FAILED).
   - `ingest.py` — CSV source resolution + parsing (the swappable processing seam; `sample:` fixtures and inline `payload.csv`).
@@ -34,6 +34,7 @@ M1 walking skeleton (submit/track API, no processing) → M2 worker + transactio
 
 - **CI calls `make` targets** — don't inline build/test logic in the workflow YAML.
 - DB tests are marked `pytestmark = pytest.mark.django_db`; use `factory_boy` (`JobFactory`) for fixtures. pytest runs strict (`--strict-markers --strict-config`, `filterwarnings=error`), so a new marker must be registered and a new warning fails CI.
+- **Realtime/async**: consumers are async (`jobs/consumers.py`); tests use pytest-asyncio `auto` mode + an autouse InMemory channel layer, and `WebsocketCommunicator` consumer tests are **Postgres-only** (`database_sync_to_async`'s second connection can't share in-memory SQLite). The only sync→async crossing is `jobs/realtime.notify_job` — never touch the ORM/serializer inside a consumer; `on_commit` broadcast seams are tested with `django_capture_on_commit_callbacks`. daphne serves ASGI (prod `CMD` + dev `runserver`).
 - **Typing**: mypy runs `strict` (one relaxation, `disallow_any_generics`, for JSON-shaped payloads) with django/DRF-stubs; annotate new app code. Tests are mypy-excluded (factory_boy's metaclass return type defeats inference). Ruff carries a broad set incl. `S` (bandit) + `BLE`; its version lives only in `uv.lock` (a local pre-commit hook runs `uv run ruff`).
 - Settings stay Postgres-by-default; only point `DATABASE_URL` at SQLite for fast local test runs (no hidden divergence in settings).
 - PRs squash-merge — the PR title becomes the permanent commit subject; follow **Conventional Commits** (see [CONTRIBUTING.md](CONTRIBUTING.md)). The `commit-style` workflow lints the PR title (warn-only).

@@ -12,6 +12,7 @@ DEBUG = os.environ.get("DJANGO_DEBUG", "false").lower() == "true"
 ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,0.0.0.0").split(",")
 
 INSTALLED_APPS = [
+    "daphne",  # M4: ASGI server + ASGI-capable runserver; MUST precede staticfiles
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -139,6 +140,17 @@ LOGGING = {
         "jobs": {"level": "INFO"},
         "celery": {"level": "INFO"},
     },
+}
+
+# === Realtime: Django Channels + WebSockets (M4) ===
+# Group-per-job fan-out of live status (jobs/realtime.py → jobs/consumers.py). Redis in
+# prod, reusing REDIS_URL; the test suite swaps this for InMemoryChannelLayer (conftest).
+# The ProtocolTypeRouter in config/asgi.py serves HTTP + WebSocket. See ADR 0004.
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {"hosts": [os.environ.get("CHANNELS_REDIS_URL", REDIS_URL)]},
+    }
 }
 
 AUTH_PASSWORD_VALIDATORS: list = []

@@ -19,5 +19,7 @@ COPY . .
 
 EXPOSE 8000
 
-# Production default; docker-compose overrides this with runserver for dev.
-CMD ["uv", "run", "--no-dev", "gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000"]
+# Production default: daphne serves ASGI (HTTP + WebSocket) — see config/asgi.py.
+# docker-compose overrides this with runserver for dev, which also serves ASGI once
+# `daphne` precedes staticfiles in INSTALLED_APPS.
+CMD ["uv", "run", "--no-dev", "daphne", "-b", "0.0.0.0", "-p", "8000", "config.asgi:application"]
