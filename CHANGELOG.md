@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.2](https://github.com/edjchapman/foreman/compare/v0.2.1...v0.2.2) (2026-07-01)
+
+
+### Build System
+
+* **security:** pin base-image digest, docker Dependabot, provenance ([#27](https://github.com/edjchapman/foreman/issues/27)) ([b2fe7c1](https://github.com/edjchapman/foreman/commit/b2fe7c1219828869b758cce84b02d7878cb67fd4))
+
+
+### Documentation
+
+* **readme:** best-practice portfolio README with table of contents ([#28](https://github.com/edjchapman/foreman/issues/28)) ([f4b141d](https://github.com/edjchapman/foreman/commit/f4b141d729913bb4d8c51024935ce5c9130123fe))
+
 ## [0.2.1](https://github.com/edjchapman/foreman/compare/v0.2.0...v0.2.1) (2026-07-01)
 
 
