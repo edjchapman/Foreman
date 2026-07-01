@@ -4,7 +4,7 @@ Event-driven job-processing platform (portfolio project). Flow: property-data im
 
 ## Stack
 
-Python 3.12, Django 5 + DRF, PostgreSQL 16, Redis + Celery, Django Channels (M4+), Docker Compose, pytest + pytest-django + factory_boy + pytest-cov, ruff, mypy (+ django/DRF stubs), pip-audit, GitHub Actions.
+Python 3.12, Django 6 + DRF, PostgreSQL 16, Redis + Celery, Django Channels (M4+), Docker Compose, structured JSON logging + `prometheus-client` metrics (M4), pytest + pytest-django + factory_boy + pytest-cov, ruff, mypy (+ django/DRF stubs), pip-audit, GitHub Actions.
 
 ## Commands
 
@@ -18,9 +18,9 @@ Python 3.12, Django 5 + DRF, PostgreSQL 16, Redis + Celery, Django Channels (M4+
 
 ## Layout
 
-- `config/` — Django project. Settings are env-driven; the DB comes from `DATABASE_URL` via `dj-database-url` (Postgres by default).
+- `config/` — Django project. Settings are env-driven; the DB comes from `DATABASE_URL` via `dj-database-url` (Postgres by default). Structured JSON logging via `config/logformat.py` (`DJANGO_LOG_FORMAT=console` for human-readable dev logs); see ADR 0003.
 - `config/celery.py` — Celery app; `config/__init__.py` exposes `celery_app` for autodiscovery. Celery/Redis settings are env-driven (`REDIS_URL`, `CELERY_*`); Beat schedules the outbox relay.
-- `jobs/` — the core app. `Job` model: UUID pk; states `PENDING → PROCESSING → SUCCEEDED|FAILED|DEAD_LETTER`; outbox-ready fields `idempotency_key` (unique-or-null) and `attempts`. `OutboxEvent` (transactional outbox) and `PropertyRecord` (imported rows). DRF `JobViewSet` (create/retrieve/list) + `HealthView`.
+- `jobs/` — the core app. `Job` model: UUID pk; states `PENDING → PROCESSING → SUCCEEDED|FAILED|DEAD_LETTER`; outbox-ready fields `idempotency_key` (unique-or-null) and `attempts`. `OutboxEvent` (transactional outbox) and `PropertyRecord` (imported rows). DRF `JobViewSet` (create/retrieve/list); `HealthView` (liveness `/healthz`), `ReadinessView` (`/readyz` — DB + broker), and `metrics.py` (`/metrics` — DB-derived Prometheus gauges).
   - `services.py` — `submit_job` writes `Job` + `OutboxEvent` atomically.
   - `tasks.py` — `dispatch_outbox` (Beat relay, claims PENDING rows with `SKIP LOCKED`) and `process_job` (worker: PENDING→PROCESSING→SUCCEEDED|FAILED).
   - `ingest.py` — CSV source resolution + parsing (the swappable processing seam; `sample:` fixtures and inline `payload.csv`).

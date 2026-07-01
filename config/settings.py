@@ -113,6 +113,34 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 25,
 }
 
+# === Observability: structured logging (M4) ===
+# One JSON object per log line (see config.logformat.JsonFormatter), toggled to a
+# human-readable format for local dev via DJANGO_LOG_FORMAT=console. See ADR 0003.
+LOG_FORMAT = os.environ.get("DJANGO_LOG_FORMAT", "json")  # "json" (default) | "console"
+# Celery hijacks the root logger by default and would reformat worker logs, bypassing
+# our schema in the very process that emits most job events — let them flow through
+# this LOGGING config instead.
+CELERY_WORKER_HIJACK_ROOT_LOGGER = False
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "json": {"()": "config.logformat.JsonFormatter"},
+        "console": {"format": "{asctime} {levelname} {name} {message}", "style": "{"},
+    },
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "formatter": LOG_FORMAT},
+    },
+    # Handler lives only on root; app loggers set a level and propagate up to it, so a
+    # record is emitted exactly once. Don't add a handler here to `jobs`/`celery` too —
+    # that double-logs. propagate (default True) is also what lets pytest caplog capture.
+    "root": {"handlers": ["console"], "level": "WARNING"},
+    "loggers": {
+        "jobs": {"level": "INFO"},
+        "celery": {"level": "INFO"},
+    },
+}
+
 AUTH_PASSWORD_VALIDATORS: list = []
 
 LANGUAGE_CODE = "en-gb"

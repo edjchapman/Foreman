@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging
 import random
+import time
 import uuid
 from datetime import timedelta
 from typing import Any
@@ -32,6 +33,21 @@ logger = logging.getLogger(__name__)
 
 OUTBOX_BATCH_SIZE = 100
 PROGRESS_CHUNK = 50
+
+
+def _log(event: str, *, level: int = logging.INFO, **fields: Any) -> None:
+    """Emit one structured log event; `fields` become top-level JSON keys."""
+    logger.log(level, event, extra=fields)
+
+
+def _log_job(event: str, job: Job, *, level: int = logging.INFO, **fields: Any) -> None:
+    """Structured job event, auto-tagging job_id and attempts."""
+    _log(event, level=level, job_id=job.id, attempts=job.attempts, **fields)
+
+
+def _ms(started: float) -> int:
+    """Elapsed milliseconds since a `time.monotonic()` mark."""
+    return round((time.monotonic() - started) * 1000)
 
 
 @shared_task(name="jobs.ping")
@@ -71,6 +87,7 @@ def process_job(job_id: str) -> str:
     `JOB_MAX_ATTEMPTS` is reached and the job is dead-lettered. A non-PENDING job is a
     no-op, so a redelivered message never reprocesses.
     """
+    started = time.monotonic()
     job = _claim_pending(job_id)
     if job is None:
         return "skipped"
@@ -79,13 +96,13 @@ def process_job(job_id: str) -> str:
         result = _import_properties(job)
     except IngestError as exc:
         _terminal(job, Job.Status.FAILED, error=str(exc))
-        logger.info("job %s failed permanently: %s", job.id, exc)
+        _log_job("job.failed", job, error_class=type(exc).__name__, error=str(exc))
         return "failed"
     except Exception as exc:  # noqa: BLE001 — transient: retry with backoff or dead-letter
         return _handle_transient(job, exc)
 
     _terminal(job, Job.Status.SUCCEEDED, progress=100, result=result)
-    logger.info("job %s succeeded on attempt %d", job.id, job.attempts)
+    _log_job("job.succeeded", job, latency_ms=_ms(started), rows_imported=result["rows_imported"])
     return "succeeded"
 
 
@@ -125,6 +142,7 @@ def _claim_pending(job_id: str) -> Job | None:
                 "updated_at",
             ]
         )
+        _log_job("job.claimed", job)
         return job
 
 
@@ -132,7 +150,7 @@ def _handle_transient(job: Job, exc: Exception) -> str:
     """Schedule a backoff retry, or dead-letter once attempts are exhausted."""
     if job.attempts >= settings.JOB_MAX_ATTEMPTS:
         _terminal(job, Job.Status.DEAD_LETTER, error=str(exc))
-        logger.warning("job %s dead-lettered after %d attempts: %s", job.id, job.attempts, exc)
+        _log_job("job.dead_letter", job, level=logging.WARNING, error_class=type(exc).__name__)
         return "dead_letter"
 
     delay = _retry_delay(job.attempts)
@@ -145,7 +163,7 @@ def _handle_transient(job: Job, exc: Exception) -> str:
         progress=0,
         error=str(exc),
     )
-    logger.info("job %s retry scheduled in %.1fs (attempt %d)", job.id, delay, job.attempts)
+    _log_job("job.retry_scheduled", job, retry_in_s=round(delay, 1))
     return "retry"
 
 
@@ -257,7 +275,7 @@ def _requeue_due_retries() -> int:
             process_job.delay(str(job.id))
             requeued += 1
     if requeued:
-        logger.info("recover_jobs requeued %d job(s)", requeued)
+        _log("recover.requeued", count=requeued)
     return requeued
 
 
@@ -279,7 +297,7 @@ def _reap_expired_leases() -> int:
             _recover_one_lease(job)
             reaped += 1
     if reaped:
-        logger.warning("recover_jobs reaped %d expired lease(s)", reaped)
+        _log("recover.reaped", level=logging.WARNING, count=reaped)
     return reaped
 
 
@@ -287,6 +305,7 @@ def _recover_one_lease(job: Job) -> None:
     """Dead-letter a lease-expired job if its attempts are spent, else requeue it now."""
     if job.attempts >= settings.JOB_MAX_ATTEMPTS:
         _terminal(job, Job.Status.DEAD_LETTER, error="lease expired")
+        _log_job("job.dead_letter", job, level=logging.WARNING, reason="lease expired")
     else:
         _fenced_update(
             job,
