@@ -130,3 +130,24 @@ reliability tunables' rationale.
 | `RECOVER_POLL_SECONDS` | 5 | How often `recover_jobs` runs. |
 | `DJANGO_LOG_FORMAT` | `json` | Log output format: `json` or `console`. |
 | `CHANNELS_REDIS_URL` | `REDIS_URL` | Redis for the WebSocket channel layer. |
+
+## Production configuration
+
+The app is 12-factor: prod is configured entirely by env vars, and the hardening settings are
+**opt-in** (so dev and tests stay simple). Set these when deploying behind HTTPS:
+
+| Variable | Set to | Why |
+|---|---|---|
+| `DJANGO_DEBUG` | `false` | Never serve a public site with `DEBUG=true`. |
+| `DJANGO_SECRET_KEY` | a long random secret | 50+ chars, ≥5 distinct; `check --deploy` rejects the dev default. |
+| `DJANGO_ALLOWED_HOSTS` | your domain | Also gates the WebSocket `Origin` check. |
+| `DJANGO_CSRF_TRUSTED_ORIGINS` | `https://<domain>` | Admin login + the demo page POST. |
+| `DJANGO_SECURE_SSL_REDIRECT` | `true` | Redirect HTTP → HTTPS. |
+| `DJANGO_SECURE_COOKIES` | `true` | `Secure` flag on session + CSRF cookies. |
+| `DJANGO_SECURE_HSTS_SECONDS` | `31536000` | Enable HSTS (+ subdomains + preload). |
+
+`SECURE_PROXY_SSL_HEADER` is set unconditionally so Django trusts a TLS-terminating proxy's
+`X-Forwarded-Proto` header — this **must** be in place before `SECURE_SSL_REDIRECT`, or the
+already-HTTPS request is seen as HTTP and 301-loops forever. Static files are collected into
+the image and served by WhiteNoise. Validate with `python manage.py check --deploy`; run
+`migrate` as a release step (not per web replica).

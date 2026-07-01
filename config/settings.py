@@ -25,6 +25,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",  # serve static under daphne (M5)
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -162,5 +163,33 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+# WhiteNoise serves static under daphne in prod (runserver serves them in dev). The hashed,
+# compressed manifest storage is used only when not DEBUG: dev/runserver uses the plain
+# finder so /admin works without collectstatic, while prod (collectstatic run in the image)
+# gets cache-busting. See M5 deploy hardening.
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"
+        if not DEBUG
+        else "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
+
+# === Production hardening (opt-in via env; dev/test-safe defaults) ===
+# Behind a TLS-terminating proxy (every PaaS) Django sees HTTP, so trust the proxy's scheme
+# header. Set unconditionally (harmless in dev — nothing sets the header) and REQUIRED before
+# SSL redirect, else the redirected HTTPS request is seen as HTTP and 301-loops forever.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_SSL_REDIRECT = os.environ.get("DJANGO_SECURE_SSL_REDIRECT", "false").lower() == "true"
+SESSION_COOKIE_SECURE = os.environ.get("DJANGO_SECURE_COOKIES", "false").lower() == "true"
+CSRF_COOKIE_SECURE = SESSION_COOKIE_SECURE
+SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_SECURE_HSTS_SECONDS", "0"))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = SECURE_HSTS_SECONDS > 0
+SECURE_HSTS_PRELOAD = SECURE_HSTS_SECONDS > 0
+# Deployed HTTPS origin(s), e.g. https://foreman.example.com — for admin login + the demo POST.
+CSRF_TRUSTED_ORIGINS = [
+    o for o in os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",") if o
+]
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

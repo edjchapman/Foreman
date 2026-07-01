@@ -12,6 +12,7 @@ dependencies = [
     "prometheus-client>=0.21",
     "channels[daphne]>=4.3.2",
     "channels-redis>=4.3.0",
+    "whitenoise>=6.12.0",
 ]
 
 [dependency-groups]
@@ -106,7 +107,12 @@ addopts = "-q --reuse-db --strict-markers --strict-config"
 xfail_strict = true
 # Warnings are errors, so a deprecated API or a misconfigured test fails loudly.
 # Add module-scoped ignores ONLY for genuine third-party deprecations we don't own.
-filterwarnings = ["error"]
+filterwarnings = [
+    "error",
+    # WhiteNoise warns when STATIC_ROOT is absent — expected in tests (unit tests run no
+    # collectstatic; prod builds it in the image) and harmless (tests serve no static).
+    "ignore:No directory at:UserWarning",
+]
 
 [tool.coverage.run]
 source = ["jobs", "config"]

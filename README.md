@@ -153,7 +153,7 @@ Beyond the feature work, the repo is operated like a production service:
 - **M2 — async worker + transactional outbox** *(done)*: atomic job+event write, Beat relay, worker ingests the property CSV into `PropertyRecord`. See [ADR 0001](docs/adr/0001-transactional-outbox.md).
 - **M3 — reliability** *(done)*: worker-side idempotency (exactly-once effect), retries with backoff, dead-letter, lease-based crash recovery, operator redrive, documented failure modes. See [ADR 0002](docs/adr/0002-retries-dlq-lease.md).
 - **M4 — realtime UI + observability** *(done)*: observability (structured logging, DB-derived Prometheus metrics, liveness/readiness, [runbook](docs/runbook.md); [ADR 0003](docs/adr/0003-observability.md)), **live job status over WebSockets** (Channels; [ADR 0004](docs/adr/0004-realtime-websockets.md)), and a **minimal live-progress demo page** at `/` (vanilla JS, no build step).
-- **M5 — ship**: Cypress E2E, deploy + public demo, case study.
+- **M5 — ship** *(in progress)*: **production hardening done** — HTTPS/proxy security settings, WhiteNoise static, non-root image (verified by `manage.py check --deploy`); **next** is the platform deploy (managed Postgres + Redis → public URL) + case study.
 
 ## Development
 
