@@ -11,6 +11,10 @@ venv/
 staticfiles/
 media/
 
+# Celery (beat writes these at runtime)
+celerybeat-schedule*
+celerybeat.pid
+
 # Env / secrets
 .env
 

@@ -56,6 +56,7 @@ services:
       start_period: 20s
     volumes:
       - ./:/app
+      - /app/.venv  # anonymous volume: keep the image's venv, not a shadowing host .venv
 
   worker:
     build: .
@@ -68,6 +69,7 @@ services:
         condition: service_healthy
     volumes:
       - ./:/app
+      - /app/.venv  # anonymous volume: keep the image's venv, not a shadowing host .venv
 
   beat:
     build: .
@@ -80,6 +82,7 @@ services:
         condition: service_healthy
     volumes:
       - ./:/app
+      - /app/.venv  # anonymous volume: keep the image's venv, not a shadowing host .venv
 
 volumes:
   pgdata:

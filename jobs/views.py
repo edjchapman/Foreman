@@ -1,6 +1,9 @@
 from typing import Any
 
 from django.db import connection
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.generic import TemplateView
 from rest_framework import mixins, serializers, status, viewsets
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -104,3 +107,15 @@ class ReadinessView(APIView):
         code = status.HTTP_200_OK if ready else status.HTTP_503_SERVICE_UNAVAILABLE
         body = {"status": "ready" if ready else "not ready", "checks": checks}
         return Response(body, status=code)
+
+
+@method_decorator(ensure_csrf_cookie, name="dispatch")
+class DemoView(TemplateView):
+    """Minimal live job-status demo page — inline vanilla-JS WebSocket client.
+
+    `ensure_csrf_cookie` sets the CSRF cookie on GET so the page's fetch can echo it
+    back (robust even against a stray authenticated /admin session); the page itself is
+    a pure client of the existing REST + WebSocket API. See the M4 demo-page slice.
+    """
+
+    template_name = "jobs/demo.html"

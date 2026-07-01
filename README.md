@@ -15,7 +15,7 @@
 
 Submit a job (e.g. a property CSV import) → the API records it atomically and emits a domain event through a **transactional outbox** → **idempotent workers** process it with **retries** and a **dead-letter** path, recovering on their own from a worker crash → progress streams over **WebSockets** *(M4)* before a downloadable report.
 
-> Portfolio project — the focus is the *reliability and operability* story, not feature breadth. **Milestones 1–3 are complete**, and **M4's backend is done** — observability (structured logging, Prometheus metrics, liveness/readiness) plus **live job status over WebSockets** ([ADR 0004](docs/adr/0004-realtime-websockets.md)); the React UI is next.
+> Portfolio project — the focus is the *reliability and operability* story, not feature breadth. **Milestones 1–4 are complete** — through observability, live job status over WebSockets ([ADR 0004](docs/adr/0004-realtime-websockets.md)), and a minimal live-progress demo page at `/`; **M5 (deploy + public demo) is next.**
 
 ## Contents
 
@@ -91,7 +91,7 @@ Python 3.12 · Django 6 + Django REST Framework · PostgreSQL 16 · Redis + Cele
 Full stack with Docker:
 
 ```bash
-make up          # Django + Postgres + Redis; API on http://localhost:8000
+make up          # full stack + live demo UI at http://localhost:8000
 ```
 
 On the host with [uv](https://docs.astral.sh/uv/) (no Docker — reads `DATABASE_URL` from your env, see `.env.example`):
@@ -152,7 +152,7 @@ Beyond the feature work, the repo is operated like a production service:
 - **M1 — walking skeleton** *(done)*: repo, Docker Compose, `Job` model, submit/track API, health check, tests + CI.
 - **M2 — async worker + transactional outbox** *(done)*: atomic job+event write, Beat relay, worker ingests the property CSV into `PropertyRecord`. See [ADR 0001](docs/adr/0001-transactional-outbox.md).
 - **M3 — reliability** *(done)*: worker-side idempotency (exactly-once effect), retries with backoff, dead-letter, lease-based crash recovery, operator redrive, documented failure modes. See [ADR 0002](docs/adr/0002-retries-dlq-lease.md).
-- **M4 — realtime UI + observability** *(in progress)*: **backend done** — observability (structured logging, DB-derived Prometheus metrics, liveness/readiness, [runbook](docs/runbook.md); [ADR 0003](docs/adr/0003-observability.md)) and **live job status over WebSockets** (Channels; [ADR 0004](docs/adr/0004-realtime-websockets.md)); **next** is the React/TS UI.
+- **M4 — realtime UI + observability** *(done)*: observability (structured logging, DB-derived Prometheus metrics, liveness/readiness, [runbook](docs/runbook.md); [ADR 0003](docs/adr/0003-observability.md)), **live job status over WebSockets** (Channels; [ADR 0004](docs/adr/0004-realtime-websockets.md)), and a **minimal live-progress demo page** at `/` (vanilla JS, no build step).
 - **M5 — ship**: Cypress E2E, deploy + public demo, case study.
 
 ## Development

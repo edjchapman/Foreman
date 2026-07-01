@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Foreman — live job status</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { font: 16px/1.5 system-ui, sans-serif; max-width: 46rem; margin: 3rem auto; padding: 0 1rem; }
+    h1 { margin-bottom: 0.25rem; }
+    p.lede { color: #666; margin-top: 0; }
+    button { font: inherit; padding: 0.5rem 0.9rem; margin: 0.25rem 0.5rem 0.25rem 0; cursor: pointer;
+             border: 1px solid #8884; border-radius: 6px; background: #f4f4f5; }
+    button:hover { background: #e8e8ea; }
+    #panel { margin-top: 1.5rem; padding: 1rem 1.25rem; border: 1px solid #8883; border-radius: 10px; }
+    .row { display: flex; gap: 0.5rem; align-items: baseline; margin-bottom: 0.5rem; }
+    .id { font-family: ui-monospace, monospace; color: #888; font-size: 0.85em; }
+    .badge { font-size: 0.8rem; font-weight: 600; padding: 0.15rem 0.55rem; border-radius: 999px;
+             color: #fff; background: #9ca3af; letter-spacing: 0.02em; }
+    .badge.PENDING { background: #9ca3af; }
+    .badge.PROCESSING { background: #3b82f6; }
+    .badge.SUCCEEDED { background: #16a34a; }
+    .badge.FAILED, .badge.DEAD_LETTER { background: #dc2626; }
+    .track { height: 10px; background: #8882; border-radius: 999px; overflow: hidden; margin: 0.75rem 0; }
+    .fill { height: 100%; width: 0; background: #3b82f6; transition: width 0.3s ease; }
+    pre { background: #8881; padding: 0.75rem; border-radius: 6px; overflow: auto; font-size: 0.85em; }
+  </style>
+</head>
+<body>
+  <h1>Foreman</h1>
+  <p class="lede">Submit a property-CSV import and watch it move through the pipeline live, over a WebSocket.</p>
+
+  <button id="run-sample">Import sample CSV</button>
+  <button id="run-bad">Try an unsupported source</button>
+
+  <section id="panel" hidden>
+    <div class="row"><strong>Job</strong> <span class="id" id="job-id"></span></div>
+    <div class="row"><span class="badge" id="status">…</span> <span>attempt <span id="attempts">0</span></span></div>
+    <div class="track"><div class="fill" id="progress"></div></div>
+    <pre id="detail"></pre>
+  </section>
+
+  {% verbatim %}
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const getCookie = (n) =>
+      document.cookie.split("; ").find((r) => r.startsWith(n + "="))?.split("=")[1];
+
+    async function submit(payload) {
+      $("panel").hidden = false;
+      $("detail").textContent = "submitting…";
+      const res = await fetch("/api/v1/jobs/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRFToken": getCookie("csrftoken") },
+        body: JSON.stringify({ job_type: "property_csv_import", payload }),
+      });
+      const job = await res.json();
+      render(job);
+      stream(job.id);
+    }
+
+    function stream(id) {
+      // Browser sends an Origin header matching this page → AllowedHostsOriginValidator passes.
+      const scheme = location.protocol === "https:" ? "wss" : "ws";
+      const ws = new WebSocket(`${scheme}://${location.host}/ws/jobs/${id}/`);
+      ws.onmessage = (e) => render(JSON.parse(e.data));
+    }
+
+    function render(job) {
+      $("job-id").textContent = job.id;
+      $("status").textContent = job.status;
+      $("status").className = "badge " + job.status;
+      $("attempts").textContent = job.attempts;
+      $("progress").style.width = (job.progress || 0) + "%";
+      const detail = job.error ? { error: job.error } : job.result;
+      $("detail").textContent = detail ? JSON.stringify(detail, null, 2) : "";
+    }
+
+    $("run-sample").onclick = () => submit({ source: "sample:properties.csv" });
+    $("run-bad").onclick = () => submit({ source: "s3://bucket/data.csv" });
+  </script>
+  {% endverbatim %}
+</body>
+</html>
