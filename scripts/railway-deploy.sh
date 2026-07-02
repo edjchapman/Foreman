@@ -27,18 +27,14 @@
 #   RAILWAY_BEAT_SERVICE_ID
 #
 # USAGE: railway-deploy.sh <version>        e.g. railway-deploy.sh 0.7.0
-#
-# NOTE: Railway returns HTTP 200 for GraphQL-level errors, so every response
-# is checked for an `errors` key — curl -f alone is not enough.
 
 set -euo pipefail
 
 VERSION="${1:?usage: railway-deploy.sh <version>}"
 IMAGE_REPO="edjchapman/foreman"
 IMAGE="ghcr.io/${IMAGE_REPO}:${VERSION}"
-API="https://backboard.railway.com/graphql/v2"
 WAIT_TIMEOUT_SECONDS="${WAIT_TIMEOUT_SECONDS:-600}"
-POLL_SECONDS=10
+POLL_SECONDS="${POLL_SECONDS:-10}"
 
 : "${RAILWAY_TOKEN:?RAILWAY_TOKEN is required}"
 : "${RAILWAY_ENVIRONMENT_ID:?RAILWAY_ENVIRONMENT_ID is required}"
@@ -46,11 +42,9 @@ POLL_SECONDS=10
 : "${RAILWAY_WORKER_SERVICE_ID:?RAILWAY_WORKER_SERVICE_ID is required}"
 : "${RAILWAY_BEAT_SERVICE_ID:?RAILWAY_BEAT_SERVICE_ID is required}"
 
-if [[ "${RAILWAY_TOKEN_KIND:-project}" == "account" ]]; then
-  AUTH_HEADER="Authorization: Bearer ${RAILWAY_TOKEN}"
-else
-  AUTH_HEADER="Project-Access-Token: ${RAILWAY_TOKEN}"
-fi
+# Shared Railway plumbing: RAILWAY_API, AUTH_HEADER (token-kind aware), gql().
+# shellcheck source=scripts/_lib-railway.sh
+. "$(dirname "${BASH_SOURCE[0]}")/_lib-railway.sh"
 
 check_image_exists() { # fail before pinning anything if the tag was never published
   local token
@@ -62,17 +56,6 @@ check_image_exists() { # fail before pinning anything if the tag was never publi
     echo "${IMAGE} not found on GHCR — is ${VERSION} a published release?" >&2
     return 1
   }
-}
-
-gql() { # gql <json-body> -> response body (fails on transport or GraphQL errors)
-  local body response
-  body="$1"
-  response="$(curl -sSf "$API" -H "$AUTH_HEADER" -H 'Content-Type: application/json' -d "$body")"
-  if jq -e '.errors' <<<"$response" >/dev/null 2>&1; then
-    echo "GraphQL error: $(jq -c '.errors' <<<"$response")" >&2
-    return 1
-  fi
-  printf '%s' "$response"
 }
 
 set_image() { # set_image <service-id>

@@ -45,14 +45,16 @@ rows_a=""; rows_b=""; rows_c=""; rows_d=""; rows_e=""
 if [ -n "$records" ]; then
   while IFS=$'\t' read -r bucket branch context; do
     [ -z "$bucket" ] && continue
+    # $(printf …) strips the trailing newline, so re-append it — but only to
+    # the bucket that received the row (appending to all five would pad the
+    # other buckets with blank lines on every iteration).
     case "$bucket" in
-      A) count_a=$((count_a + 1)); rows_a+=$(printf "  %s  (%s)\n" "$branch" "$context") ;;
-      B) count_b=$((count_b + 1)); rows_b+=$(printf "  %s  (%s)\n" "$branch" "$context") ;;
-      C) count_c=$((count_c + 1)); rows_c+=$(printf "  %s  (%s)\n" "$branch" "$context") ;;
-      D) count_d=$((count_d + 1)); rows_d+=$(printf "  %s  (%s)\n" "$branch" "$context") ;;
-      E) count_e=$((count_e + 1)); rows_e+=$(printf "  %s  (%s)\n" "$branch" "$context") ;;
+      A) count_a=$((count_a + 1)); rows_a+=$(printf "  %s  (%s)" "$branch" "$context")$'\n' ;;
+      B) count_b=$((count_b + 1)); rows_b+=$(printf "  %s  (%s)" "$branch" "$context")$'\n' ;;
+      C) count_c=$((count_c + 1)); rows_c+=$(printf "  %s  (%s)" "$branch" "$context")$'\n' ;;
+      D) count_d=$((count_d + 1)); rows_d+=$(printf "  %s  (%s)" "$branch" "$context")$'\n' ;;
+      E) count_e=$((count_e + 1)); rows_e+=$(printf "  %s  (%s)" "$branch" "$context")$'\n' ;;
     esac
-    rows_a+=$'\n'; rows_b+=$'\n'; rows_c+=$'\n'; rows_d+=$'\n'; rows_e+=$'\n'
   done <<< "$records"
 fi
 
