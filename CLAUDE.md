@@ -11,6 +11,7 @@ Python 3.12, Django 6 + DRF, PostgreSQL 16, Redis + Celery, Django Channels + We
 - `make up` / `make down` — local Docker stack (Django + Postgres).
 - `make migrate` / `make makemigrations` — migrations (run on the host via uv).
 - `make test` — pytest. `make lint` — ruff (check + format). `make typecheck` — mypy (strict; django/DRF stubs; no DB). `make fmt` — auto-fix. `make ci` — lint + typecheck + coverage-gated test (90% floor; what CI runs).
+- `make e2e` — Playwright browser tests against the live demo (`e2e/`, own pytest.ini; excluded from `make ci` — needs Chromium + a live platform; `FOREMAN_E2E_URL` retargets). Verifies the demo page, a sample import going `SUCCEEDED` over the WebSocket (asserts no polling), the CSV report, and the poison-job `FAILED` path.
 - `make audit` — `pip-audit` for dependency CVEs (own scheduled `audit.yml`). `make preflight` — full pre-PR gate (`ci` + `audit` + `check`).
 - `make worker` / `make beat` — Celery worker / Beat (the outbox-relay scheduler). `make relay` — dispatch the outbox once (no Beat).
 - `make check` — docs/hygiene gate (markdown link + anchor validators; bash + python3, no DB). Distinct from `make ci` (the stack gate); both run in CI.

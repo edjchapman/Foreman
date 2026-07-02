@@ -184,6 +184,11 @@ terraform apply     # back in minutes — then `make configure` and update the
 
 ## Post-deploy smoke checks
 
+Checks 3 and 5 are automated as browser tests: `make e2e` (Playwright against
+the live demo; `FOREMAN_E2E_URL` retargets) covers the demo page, the sample
+import going `SUCCEEDED` over the WebSocket (and asserts no polling fallback),
+the CSV report, and the poison-job `FAILED` path.
+
 1. `curl -fsS https://<domain>/healthz` → 200; `…/readyz` → 200 (DB + Redis
    reachable over private networking).
 2. `curl -sI http://<domain>/` → 301 to `https://` (no redirect loop —
