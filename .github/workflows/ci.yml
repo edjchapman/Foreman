@@ -54,7 +54,7 @@ jobs:
         with:
           files: ./coverage.xml
           use_oidc: true
-          fail_ci_if_error: false # flip to true once the Codecov app is authorized + green
+          fail_ci_if_error: true # a failed upload reddens CI rather than silently dropping coverage
 
   terraform:
     name: terraform validate
