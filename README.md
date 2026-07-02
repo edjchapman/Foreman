@@ -15,7 +15,7 @@
 
 Submit a job (e.g. a property CSV import) → the API records it atomically and emits a domain event through a **transactional outbox** → **idempotent workers** process it with **retries** and a **dead-letter** path, recovering on their own from a worker crash → progress streams over **WebSockets** → the imported records come back as a **downloadable CSV report**.
 
-> Portfolio project — the focus is the *reliability and operability* story, not feature breadth. The platform is **live**: [**foreman-demo.up.railway.app**](https://foreman-demo.up.railway.app) runs the real pipeline (managed Postgres + Redis, web/worker/beat from the release image, deployed by the CD pipeline below).
+> Portfolio project — the focus is the *reliability and operability* story, not feature breadth. The platform is **live**: [**foreman-demo.up.railway.app**](https://foreman-demo.up.railway.app) runs the real pipeline (managed Postgres + Redis, web/worker/beat from the release image, deployed by the CD pipeline below). The full engineering narrative is the [**case study**](docs/case-study.md).
 
 ## Live demo
 
@@ -162,11 +162,11 @@ Beyond the feature work, the repo is operated like a production service:
 - **M2 — async worker + transactional outbox** *(done)*: atomic job+event write, Beat relay, worker ingests the property CSV into `PropertyRecord`. See [ADR 0001](docs/adr/0001-transactional-outbox.md).
 - **M3 — reliability** *(done)*: worker-side idempotency (exactly-once effect), retries with backoff, dead-letter, lease-based crash recovery, operator redrive, documented failure modes. See [ADR 0002](docs/adr/0002-retries-dlq-lease.md).
 - **M4 — realtime UI + observability** *(done)*: observability (structured logging, DB-derived Prometheus metrics, liveness/readiness, [runbook](docs/runbook.md); [ADR 0003](docs/adr/0003-observability.md)), **live job status over WebSockets** (Channels; [ADR 0004](docs/adr/0004-realtime-websockets.md)), and a **minimal live-progress demo page** at `/` (vanilla JS, no build step).
-- **M5 — ship** *(in progress)*:
+- **M5 — ship** *(done)*:
   - ✅ **Production hardening** — HTTPS/proxy security settings, WhiteNoise static, non-root image (verified by `manage.py check --deploy`).
   - ✅ **Downloadable report** — streamed CSV of a job's imported records (`GET /api/v1/jobs/{id}/report/` + demo-page download link), completing the advertised pipeline.
   - ✅ **Platform deploy** — [live on Railway](https://foreman-demo.up.railway.app), Terraform-provisioned (`deploy/terraform/` declares the five services + secrets + domain; `terraform destroy`/`apply` is the demo's off/on switch — [ADR 0005](docs/adr/0005-deployment-platform.md)), with CD pinning each release's semver image ([deploy runbook](docs/deploy.md)).
-  - ⬜ **Case study** — write-up of the reliability story (outbox → idempotency/DLQ/lease → realtime → report), linking the ADRs.
+  - ✅ **Case study** — [the reliability story end-to-end](docs/case-study.md) (outbox → idempotency/DLQ/lease → observability → realtime → report → ship), linking the ADRs.
 
 ## Development
 
