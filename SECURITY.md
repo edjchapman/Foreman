@@ -7,8 +7,8 @@ Please report security issues **privately** via GitHub's
 — do not open a public issue for anything security-sensitive.
 
 You can expect an initial response within a few days. This is a portfolio project
-with no SLA (the public demo carries no real data), but reports are welcome and
-will be addressed.
+with no SLA (the public demo is not intended to hold real data — please don't
+submit any), but reports are welcome and will be addressed.
 
 ## Supported versions
 
