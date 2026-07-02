@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.5](https://github.com/edjchapman/foreman/compare/v0.9.4...v0.9.5) (2026-07-02)
+
+
+### Documentation
+
+* add the reliability case study — completes M5 ([#65](https://github.com/edjchapman/foreman/issues/65)) ([2e90506](https://github.com/edjchapman/foreman/commit/2e90506e30c9f88d176ce371825e6ea3ea6aa7e7))
+
 ## [0.9.4](https://github.com/edjchapman/foreman/compare/v0.9.3...v0.9.4) (2026-07-02)
 
 
