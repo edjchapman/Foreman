@@ -15,10 +15,15 @@ on:
 
 permissions: read-all
 
+concurrency:
+  group: scorecard-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false # let an in-flight analysis finish; queued runs wait
+
 jobs:
   analysis:
     name: scorecard
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       security-events: write # upload SARIF to code scanning
       id-token: write # publish_results via OIDC (powers the badge)

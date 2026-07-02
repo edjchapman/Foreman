@@ -14,6 +14,7 @@ jobs:
   ci:
     name: lint + test
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       id-token: write # Codecov OIDC (tokenless upload)
@@ -58,6 +59,7 @@ jobs:
   terraform:
     name: terraform validate
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:

@@ -19,8 +19,8 @@ PR title blocks the merge.
 ## Quality gates
 
 - `make check` — docs/hygiene gate: internal markdown links + anchors. Runs in CI
-  (`check.yml`, weekly `scheduled-check.yml`) and locally on commit. Needs only
-  bash, python3, git.
+  (`check.yml`, on every PR/push plus a weekly scheduled drift check) and locally
+  on commit. Needs only bash, python3, git.
 - `make ci` — stack gate: ruff lint/format-check + pytest. Needs `uv` and a
   Postgres `DATABASE_URL` (see `.env.example`). Runs in `ci.yml`.
 - `make lint` / `make fmt` / `make test` — individual stack steps.

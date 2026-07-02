@@ -86,7 +86,7 @@ tf-check: ## Terraform gate: fmt + validate the platform module (needs terraform
 	terraform -chdir=deploy/terraform init -backend=false -input=false >/dev/null
 	terraform -chdir=deploy/terraform validate
 
-# === Validation (docs/hygiene gate — run by check.yml, scheduled-check.yml, pre-commit) ===
+# === Validation (docs/hygiene gate — run by check.yml on PR/push + weekly schedule, and pre-commit) ===
 
 check: check-links check-anchors stack-check ## Run the docs/hygiene gate (no toolchain needed)
 	@echo "All checks passed."
