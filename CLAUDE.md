@@ -32,7 +32,7 @@ Python 3.12, Django 6 + DRF, PostgreSQL 16, Redis + Celery, Django Channels + We
 
 ## Milestone roadmap
 
-M1 walking skeleton (submit/track API, no processing) → M2 worker + transactional outbox → M3 reliability (worker-side idempotency, retries, DLQ) → M4 realtime UI + observability → M5 ship (deploy, demo, case study). **M1–M4 done; M5 in progress** — production hardening and the CSV report are done; remaining: platform deploy (managed Postgres + Redis → public URL for the GHCR image) and the case study (tracked as GitHub issues).
+M1 walking skeleton (submit/track API, no processing) → M2 worker + transactional outbox → M3 reliability (worker-side idempotency, retries, DLQ) → M4 realtime UI + observability → M5 ship (deploy, demo, case study). **M1–M4 done; M5 in progress** — production hardening, the CSV report, and the platform deploy (live at https://foreman-demo.up.railway.app) are done; remaining: the case study (issue #44).
 
 ## Conventions
 

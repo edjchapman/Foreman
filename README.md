@@ -15,10 +15,17 @@
 
 Submit a job (e.g. a property CSV import) → the API records it atomically and emits a domain event through a **transactional outbox** → **idempotent workers** process it with **retries** and a **dead-letter** path, recovering on their own from a worker crash → progress streams over **WebSockets** → the imported records come back as a **downloadable CSV report**.
 
-> Portfolio project — the focus is the *reliability and operability* story, not feature breadth. **Milestones 1–4 are complete** — through observability, live job status over WebSockets ([ADR 0004](docs/adr/0004-realtime-websockets.md)), and a minimal live-progress demo page at `/`; **M5 (deploy + public demo) is next.**
+> Portfolio project — the focus is the *reliability and operability* story, not feature breadth. The platform is **live**: [**foreman-demo.up.railway.app**](https://foreman-demo.up.railway.app) runs the real pipeline (managed Postgres + Redis, web/worker/beat from the release image, deployed by the CD pipeline below).
+
+## Live demo
+
+[Submit a sample import](https://foreman-demo.up.railway.app) and watch it move through the pipeline **live over a WebSocket** (no polling — the [E2E suite](e2e/test_demo_page.py) asserts it):
+
+![A sample CSV import going PENDING → SUCCEEDED live over a WebSocket, then offering the imported records as a CSV report](docs/assets/demo.gif)
 
 ## Contents
 
+- [Live demo](#live-demo)
 - [Highlights](#highlights)
 - [Architecture](#architecture)
 - [Reliability model](#reliability-model)
@@ -143,7 +150,7 @@ A submitted job is recorded `PENDING` alongside its outbox event in one transact
 
 Beyond the feature work, the repo is operated like a production service:
 
-- **CI gates** (required on `main`): ruff lint + format, `mypy --strict` with django/DRF stubs, and pytest at a **90% coverage floor** against a real PostgreSQL service — plus a docs/link gate. Run the whole thing locally with `make preflight`.
+- **CI gates** (required on `main`): ruff lint + format, `mypy --strict` with django/DRF stubs, and pytest at a **90% coverage floor** against a real PostgreSQL service — plus a docs/link gate. Run the whole thing locally with `make preflight`. The full pipeline (PR gates → release → image → deploy) is diagrammed in [docs/ci.md](docs/ci.md).
 - **Security & supply chain**: CodeQL (code *and* workflows), dependency review on PRs, scheduled `pip-audit`, secret scanning + push protection, SHA-pinned actions, a digest-pinned Docker base image, and SLSA build-provenance attestations on release images. Posture is graded by [OpenSSF Scorecard](https://securityscorecards.dev/viewer/?uri=github.com/edjchapman/foreman).
 - **Automated releases & deploys**: Conventional Commits drive [release-please](https://github.com/googleapis/release-please) — it maintains the `CHANGELOG` + version and cuts GitHub Releases, each publishing a versioned image to **GHCR** (`ghcr.io/edjchapman/foreman`) and deploying it to Railway with the semver tag pinned (web gates worker/beat behind migrate + `/readyz`; see [docs/deploy.md](docs/deploy.md)).
 - **Governance**: protected `main` (required checks, linear history, squash-only, no bypass), `CODEOWNERS`, issue templates, a [security policy](SECURITY.md), and Dependabot across Python, Actions, and Docker.
@@ -158,7 +165,7 @@ Beyond the feature work, the repo is operated like a production service:
 - **M5 — ship** *(in progress)*:
   - ✅ **Production hardening** — HTTPS/proxy security settings, WhiteNoise static, non-root image (verified by `manage.py check --deploy`).
   - ✅ **Downloadable report** — streamed CSV of a job's imported records (`GET /api/v1/jobs/{id}/report/` + demo-page download link), completing the advertised pipeline.
-  - ⬜ **Platform deploy** — Railway, Terraform-provisioned (`deploy/terraform/` declares the five services + secrets + domain; `terraform destroy`/`apply` is the demo's off/on switch — [ADR 0005](docs/adr/0005-deployment-platform.md)). CD machinery + [deploy runbook](docs/deploy.md) landed; public URL pending provisioning.
+  - ✅ **Platform deploy** — [live on Railway](https://foreman-demo.up.railway.app), Terraform-provisioned (`deploy/terraform/` declares the five services + secrets + domain; `terraform destroy`/`apply` is the demo's off/on switch — [ADR 0005](docs/adr/0005-deployment-platform.md)), with CD pinning each release's semver image ([deploy runbook](docs/deploy.md)).
   - ⬜ **Case study** — write-up of the reliability story (outbox → idempotency/DLQ/lease → realtime → report), linking the ADRs.
 
 ## Development
