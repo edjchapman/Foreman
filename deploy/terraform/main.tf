@@ -90,9 +90,13 @@ resource "railway_variable_collection" "postgres" {
 # provider (v0.6.2) creates but never attaches a second project volume, so a
 # redis volume deterministically fails every fresh `apply` (the off/on switch).
 resource "railway_service" "redis" {
-  name         = "redis"
-  project_id   = railway_project.foreman.id
-  source_image = "bitnami/redis:7.2"
+  name       = "redis"
+  project_id = railway_project.foreman.id
+  # bitnamilegacy: Bitnami's 2025 catalog change removed versioned tags from
+  # bitnami/* (only :latest remains); pinned tags live in the frozen legacy
+  # namespace. Acceptable here: private-network-only, password-protected,
+  # ephemeral broker state.
+  source_image = "bitnamilegacy/redis:7.2"
 }
 
 resource "railway_variable_collection" "redis" {

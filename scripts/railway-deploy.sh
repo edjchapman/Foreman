@@ -82,41 +82,61 @@ set_image() { # set_image <service-id>
   }')" >/dev/null
 }
 
-deploy() { # deploy <service-id>
+deploy() { # deploy <service-id> -> the created deployment's id
   gql "$(jq -n --arg s "$1" --arg e "$RAILWAY_ENVIRONMENT_ID" '{
     query: "mutation($s:String!,$e:String!){serviceInstanceDeployV2(serviceId:$s,environmentId:$e)}",
     variables: {s: $s, e: $e}
-  }')" >/dev/null
+  }')" | jq -r '.data.serviceInstanceDeployV2'
 }
 
-latest_status() { # latest_status <service-id> -> e.g. SUCCESS / FAILED / DEPLOYING
+deployment_status() { # deployment_status <deployment-id>
+  gql "$(jq -n --arg d "$1" '{
+    query: "query($d:String!){deployment(id:$d){status}}",
+    variables: {d: $d}
+  }')" | jq -r '.data.deployment.status // "UNKNOWN"'
+}
+
+latest_deployment_id() { # latest_deployment_id <service-id>
   gql "$(jq -n --arg s "$1" --arg e "$RAILWAY_ENVIRONMENT_ID" '{
-    query: "query($s:String!,$e:String!){deployments(first:1,input:{serviceId:$s,environmentId:$e}){edges{node{status}}}}",
+    query: "query($s:String!,$e:String!){deployments(first:1,input:{serviceId:$s,environmentId:$e}){edges{node{id}}}}",
     variables: {s: $s, e: $e}
-  }')" | jq -r '.data.deployments.edges[0].node.status // "UNKNOWN"'
+  }')" | jq -r '.data.deployments.edges[0].node.id // empty'
 }
 
-wait_success() { # wait_success <service-id> <label>
-  local deadline status
+# Polls the SPECIFIC deployment created by deploy() — "latest deployment of
+# the service" is racy: the new record can lag the mutation, so a first poll
+# may read a PREVIOUS (possibly failed) deployment and abort a healthy rollout.
+wait_success() { # wait_success <deployment-id> <service-id> <label>
+  local dep deadline status
+  dep="$1"
   deadline=$((SECONDS + WAIT_TIMEOUT_SECONDS))
   while ((SECONDS < deadline)); do
-    status="$(latest_status "$1")"
+    status="$(deployment_status "$dep")"
     case "$status" in
       SUCCESS)
-        echo "$2: deployment SUCCESS"
+        echo "$3: deployment SUCCESS"
         return 0
         ;;
-      FAILED | CRASHED | REMOVED)
-        echo "$2: deployment $status — aborting rollout" >&2
+      FAILED | CRASHED)
+        echo "$3: deployment $status — aborting rollout" >&2
         return 1
         ;;
+      REMOVED)
+        # The image re-pin and the explicit deploy can race into a pair of
+        # deployments; Railway keeps one and REMOVEs the other. Track the
+        # survivor rather than treating supersession as failure.
+        dep="$(latest_deployment_id "$2")"
+        [[ -n "$dep" ]] || { echo "$3: deployment REMOVED with no successor — aborting" >&2; return 1; }
+        echo "$3: deployment superseded — tracking $dep"
+        sleep "$POLL_SECONDS"
+        ;;
       *)
-        echo "$2: $status …"
+        echo "$3: $status …"
         sleep "$POLL_SECONDS"
         ;;
     esac
   done
-  echo "$2: timed out after ${WAIT_TIMEOUT_SECONDS}s — aborting rollout" >&2
+  echo "$3: timed out after ${WAIT_TIMEOUT_SECONDS}s — aborting rollout" >&2
   return 1
 }
 
@@ -125,20 +145,20 @@ check_image_exists
 
 echo "web: pinning image + deploying (pre-deploy migrate + /readyz gate run here)"
 set_image "$RAILWAY_WEB_SERVICE_ID"
-deploy "$RAILWAY_WEB_SERVICE_ID"
-wait_success "$RAILWAY_WEB_SERVICE_ID" "web"
+WEB_DEP="$(deploy "$RAILWAY_WEB_SERVICE_ID")"
+wait_success "$WEB_DEP" "$RAILWAY_WEB_SERVICE_ID" "web"
 
 echo "worker: pinning image + deploying"
 set_image "$RAILWAY_WORKER_SERVICE_ID"
-deploy "$RAILWAY_WORKER_SERVICE_ID"
+WORKER_DEP="$(deploy "$RAILWAY_WORKER_SERVICE_ID")"
 
 echo "beat: pinning image + deploying"
 set_image "$RAILWAY_BEAT_SERVICE_ID"
-deploy "$RAILWAY_BEAT_SERVICE_ID"
+BEAT_DEP="$(deploy "$RAILWAY_BEAT_SERVICE_ID")"
 
 # Worker/beat deploy concurrently; polling is serial but the deadline in
 # wait_success is per-service, so a slow worker doesn't eat beat's budget.
-wait_success "$RAILWAY_WORKER_SERVICE_ID" "worker"
-wait_success "$RAILWAY_BEAT_SERVICE_ID" "beat"
+wait_success "$WORKER_DEP" "$RAILWAY_WORKER_SERVICE_ID" "worker"
+wait_success "$BEAT_DEP" "$RAILWAY_BEAT_SERVICE_ID" "beat"
 
 echo "Rollout of ${VERSION} complete — web, worker, and beat all verified."
