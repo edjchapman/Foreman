@@ -24,6 +24,18 @@ PR title blocks the merge.
 - `make ci` — stack gate: ruff lint/format-check + pytest. Needs `uv` and a
   Postgres `DATABASE_URL` (see `.env.example`). Runs in `ci.yml`.
 - `make lint` / `make fmt` / `make test` — individual stack steps.
+- `make preflight` — the full pre-PR gate (`ci` + `audit` + `check`); run it
+  before opening a PR.
+
+## From merge to production
+
+Merging a PR is the last manual step. On every push to `main`, release-please
+maintains a Release PR that accumulates the Conventional-Commit changes;
+merging *that* cuts a GitHub Release, publishes
+`ghcr.io/edjchapman/foreman:<version>` (with SLSA provenance), and deploys it
+to Railway — web first, gated by pre-deploy `migrate` + `/readyz`, then
+worker/beat. The pipeline is diagrammed in [docs/ci.md](docs/ci.md); deploy
+topology and rollback live in [docs/deploy.md](docs/deploy.md).
 
 ## Git hooks
 
