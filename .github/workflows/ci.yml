@@ -54,3 +54,16 @@ jobs:
           files: ./coverage.xml
           use_oidc: true
           fail_ci_if_error: false # flip to true once the Codecov app is authorized + green
+
+  terraform:
+    name: terraform validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_wrapper: false
+      - name: fmt + validate the platform module
+        run: make tf-check

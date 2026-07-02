@@ -1,0 +1,39 @@
+name: deploy
+
+# Manual deploy of an already-published image tag to Railway. Releases deploy
+# automatically (release-please.yml -> deploy job); this path exists for
+# rollbacks (pick a previous version) and for re-pinning after a
+# `terraform apply` rebuild (service IDs change, the platform boots on
+# :latest until re-pinned). Same script either way: web deploys first and
+# gates worker/beat behind pre-deploy migrate + /readyz.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Image tag to deploy (e.g. 0.7.0 — must exist on GHCR)"
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: railway-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - name: Deploy to Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
+          RAILWAY_WEB_SERVICE_ID: ${{ vars.RAILWAY_WEB_SERVICE_ID }}
+          RAILWAY_WORKER_SERVICE_ID: ${{ vars.RAILWAY_WORKER_SERVICE_ID }}
+          RAILWAY_BEAT_SERVICE_ID: ${{ vars.RAILWAY_BEAT_SERVICE_ID }}
+        run: make deploy VERSION=${{ inputs.version }}

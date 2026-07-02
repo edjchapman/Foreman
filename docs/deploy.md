@@ -63,6 +63,32 @@ documented in [`.env.example`](../.env.example); the production values
 | `DJANGO_SECRET_KEY` | `${{shared.DJANGO_SECRET_KEY}}` |
 | `DJANGO_DEBUG` | `false` |
 
+## Release pipeline (end to end)
+
+1. **PR** → squash-merged with a Conventional-Commit title, gated by `ci`
+   (ruff + mypy + pytest ≥90% against Postgres, plus `terraform validate` on
+   the platform module), `check` (docs), CodeQL, and dependency review.
+2. **release-please** maintains a Release PR on `main`; merging it cuts the
+   tag + GitHub Release.
+3. **publish-image** builds and pushes `ghcr.io/edjchapman/foreman:<version>`
+   (+ `:latest`) with a SLSA provenance attestation.
+4. **deploy** (same workflow) runs `make deploy VERSION=<version>` — the
+   Railway rollout described below. Release and manual deploys share a
+   concurrency group, so they never interleave.
+
+Manual paths, same script underneath:
+
+- **Rollback / arbitrary version**: Actions → `deploy` → Run workflow with the
+  version (or `make deploy VERSION=…` locally with the token).
+- **After a `terraform apply` rebuild**: services boot on `:latest`; run the
+  manual deploy once to re-pin the current release (and update the GitHub
+  repo variables — service IDs change on rebuild).
+
+Post-release chore: release-please bumps `pyproject.toml` but not `uv.lock`'s
+own project version — the next `uv run` re-syncs it; commit that one-liner
+with your next change (annotating `uv.lock` for release-please's updaters
+isn't possible in a machine-generated file).
+
 ## Continuous deployment
 
 Railway does **not** watch GHCR — pushing an image deploys nothing, and

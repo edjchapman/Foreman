@@ -53,6 +53,16 @@ reproducible, and dashboard rollback re-runs the *old version* rather than
 re-pulling whatever `:latest` means now. Railway's native image auto-update
 polling (hours-delayed, maintenance-windowed) stays off as a CD path.
 
+**GitHub Actions stays the CI/CD backbone.** It already runs every gate
+(ci/check/CodeQL/audit/release-please), holds the secrets, and enforces
+SHA-pinned actions — adding the deploy job costs one thin YAML step calling a
+make target. Options rejected: Railway repo-connected builds (below),
+Railway-side CD triggers (the auto-update polling above), and a GitOps
+controller (Argo-style pull reconciliation is machinery this five-service demo
+doesn't earn). A manual `workflow_dispatch` deploy (`deploy.yml`) covers
+rollback and post-`terraform apply` re-pinning, sharing a concurrency group
+with the release job so deploys never interleave.
+
 ### 3. Web gates the fleet: pre-deploy `migrate`, `/readyz` cutover
 
 Web deploys first with pre-deploy command `manage.py migrate` (failure aborts
