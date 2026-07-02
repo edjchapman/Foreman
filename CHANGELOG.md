@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.4](https://github.com/edjchapman/foreman/compare/v0.9.3...v0.9.4) (2026-07-02)
+
+
+### Documentation
+
+* fix broken ci.md pipeline diagram; tighten overclaims ([#61](https://github.com/edjchapman/foreman/issues/61)) ([95671f4](https://github.com/edjchapman/foreman/commit/95671f4a5ee9d3cb57db07edb76cefc0de95323c))
+
 ## [0.9.3](https://github.com/edjchapman/foreman/compare/v0.9.2...v0.9.3) (2026-07-02)
 
 
