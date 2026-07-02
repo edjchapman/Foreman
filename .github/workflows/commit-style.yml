@@ -14,6 +14,10 @@ name: commit-style
 on:
   pull_request:
     branches: [main]
+    # `edited` is not in the default event set, but this check validates the PR
+    # TITLE — without it, fixing a rejected title never re-runs the (required)
+    # check and the PR stays red until an unrelated push.
+    types: [opened, edited, synchronize, reopened]
 
 permissions:
   contents: read
