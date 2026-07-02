@@ -11,18 +11,23 @@ on:
   push:
     branches: [main]
   schedule:
-    # Mondays 09:00 UTC — matches scheduled-check; re-audits the locked deps weekly.
+    # Mondays 09:00 UTC — matches the repo's other scheduled jobs; re-audits the locked deps weekly.
     - cron: "0 9 * * 1"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
-  group: audit-${{ github.workflow }}-${{ github.ref }}
+  # event_name in the group so a scheduled run can never cancel an in-flight push run
+  group: audit-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   audit:
     name: pip-audit
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0

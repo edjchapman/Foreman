@@ -1,19 +1,32 @@
 name: check
 
+# Docs/hygiene gate (markdown links + anchors) on every PR and push. Also runs
+# on a weekly schedule to catch drift from out-of-band edits (e.g. via the
+# GitHub web UI) that never pass through a PR.
+
 on:
   pull_request:
     branches: [main]
   push:
     branches: [main]
+  schedule:
+    # Mondays 09:00 UTC — matches the repo's other scheduled jobs
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 concurrency:
-  group: check-${{ github.workflow }}-${{ github.ref }}
+  # event_name in the group so a scheduled run can never cancel an in-flight push run
+  group: check-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   make-check:
     name: make check
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - name: Run make check

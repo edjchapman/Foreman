@@ -23,6 +23,7 @@ jobs:
   release-please:
     name: release-please
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
       pull-requests: write
@@ -42,6 +43,7 @@ jobs:
     needs: release-please
     if: ${{ needs.release-please.outputs.release_created == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
       packages: write
@@ -77,26 +79,18 @@ jobs:
 
   # Railway doesn't watch GHCR, so CD is explicit: pin each service to the new
   # semver tag and trigger a deployment (web first — its pre-deploy migrate and
-  # /readyz healthcheck gate worker/beat). Logic lives in scripts/railway-deploy.sh
-  # per the "CI calls make targets" convention. See docs/deploy.md.
+  # /readyz healthcheck gate worker/beat). The deploy job itself lives in
+  # deploy.yml (reused by the manual rollback path); the script logic in
+  # scripts/railway-deploy.sh per the "CI calls make targets" convention.
+  # See docs/deploy.md.
   deploy:
     name: deploy
     needs: [release-please, publish-image]
     if: ${{ needs.release-please.outputs.release_created == 'true' }}
-    runs-on: ubuntu-latest
-    environment: production # no protection rules — used for deployment history
     permissions:
       contents: read
-    concurrency:
-      group: railway-deploy # shared with deploy.yml — release + manual deploys never interleave
-      cancel-in-progress: false
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
-      - name: Deploy to Railway
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-          RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
-          RAILWAY_WEB_SERVICE_ID: ${{ vars.RAILWAY_WEB_SERVICE_ID }}
-          RAILWAY_WORKER_SERVICE_ID: ${{ vars.RAILWAY_WORKER_SERVICE_ID }}
-          RAILWAY_BEAT_SERVICE_ID: ${{ vars.RAILWAY_BEAT_SERVICE_ID }}
-        run: make deploy VERSION=${{ needs.release-please.outputs.version }}
+    uses: ./.github/workflows/deploy.yml
+    with:
+      version: ${{ needs.release-please.outputs.version }}
+    secrets:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
