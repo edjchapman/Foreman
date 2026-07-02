@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.9.3](https://github.com/edjchapman/foreman/compare/v0.9.2...v0.9.3) (2026-07-02)
+
+
+### Code Refactoring
+
+* **scripts:** extract shared Railway lib; fix stale-branch output ([#57](https://github.com/edjchapman/foreman/issues/57)) ([b4aa1e6](https://github.com/edjchapman/foreman/commit/b4aa1e68ad30bd514d0c48bcd8f31666305070ac))
+
+
+### Documentation
+
+* showcase the live demo, add CI pipeline overview + code of conduct ([#58](https://github.com/edjchapman/foreman/issues/58)) ([11f6e82](https://github.com/edjchapman/foreman/commit/11f6e82afd8fddef68906b8271148e0f7aaf61b4))
+
 ## [0.9.2](https://github.com/edjchapman/foreman/compare/v0.9.1...v0.9.2) (2026-07-02)
 
 
