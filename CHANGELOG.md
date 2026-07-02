@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.0](https://github.com/edjchapman/foreman/compare/v0.8.0...v0.9.0) (2026-07-02)
+
+
+### Features
+
+* **deploy:** railway-configure script closes the IaC provider gaps ([#49](https://github.com/edjchapman/foreman/issues/49)) ([daa9b93](https://github.com/edjchapman/foreman/commit/daa9b933d2718a7557405da6076264f66a7c48ad))
+
 ## [0.8.0](https://github.com/edjchapman/foreman/compare/v0.7.0...v0.8.0) (2026-07-02)
 
 
