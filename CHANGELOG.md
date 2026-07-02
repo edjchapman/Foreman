@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/edjchapman/foreman/compare/v0.6.0...v0.7.0) (2026-07-02)
+
+
+### Features
+
+* downloadable CSV report for succeeded jobs ([#42](https://github.com/edjchapman/foreman/issues/42)) ([35f93ad](https://github.com/edjchapman/foreman/commit/35f93adc1e848fa533b93565bce30cfe6838aefe))
+
 ## [0.6.0](https://github.com/edjchapman/foreman/compare/v0.5.0...v0.6.0) (2026-07-01)
 
 
