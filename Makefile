@@ -1,4 +1,4 @@
-.PHONY: help up down build logs migrate makemigrations test lint fmt typecheck audit ci preflight shell \
+.PHONY: help up down build logs migrate makemigrations test e2e lint fmt typecheck audit ci preflight shell \
         worker beat relay deploy configure tf-check \
         check check-links check-anchors stack-check \
         check-commit-msg check-stale-branches sweep-branches lint-md
@@ -34,6 +34,10 @@ makemigrations: ## Generate migrations
 
 test: ## Run the test suite
 	uv run pytest
+
+e2e: ## Browser tests against the live demo (Playwright; FOREMAN_E2E_URL retargets)
+	uv run --group e2e playwright install chromium
+	uv run --group e2e pytest -c e2e/pytest.ini e2e
 
 lint: ## Lint + format-check (no changes)
 	uv run ruff check .
