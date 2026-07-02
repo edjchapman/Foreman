@@ -29,13 +29,11 @@ PR title blocks the merge.
 
 ## From merge to production
 
-Merging a PR is the last manual step. On every push to `main`, release-please
-maintains a Release PR that accumulates the Conventional-Commit changes;
-merging *that* cuts a GitHub Release, publishes
-`ghcr.io/edjchapman/foreman:<version>` (with SLSA provenance), and deploys it
-to Railway — web first, gated by pre-deploy `migrate` + `/readyz`, then
-worker/beat. The pipeline is diagrammed in [docs/ci.md](docs/ci.md); deploy
-topology and rollback live in [docs/deploy.md](docs/deploy.md).
+Merging a PR is not the end of the story: release-please accumulates the
+merged Conventional Commits into a Release PR, and merging *that* cuts the
+release, publishes the image, and deploys it. The pipeline is diagrammed in
+[docs/ci.md](docs/ci.md); deploy topology and rollback live in
+[docs/deploy.md](docs/deploy.md).
 
 ## Git hooks
 
