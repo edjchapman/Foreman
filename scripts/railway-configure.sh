@@ -25,7 +25,6 @@
 
 set -euo pipefail
 
-API="https://backboard.railway.com/graphql/v2"
 TF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../deploy/terraform" && pwd)"
 
 : "${RAILWAY_TOKEN:?RAILWAY_TOKEN is required}"
@@ -42,22 +41,9 @@ fi
 : "${RAILWAY_WORKER_SERVICE_ID:?RAILWAY_WORKER_SERVICE_ID is required}"
 : "${RAILWAY_BEAT_SERVICE_ID:?RAILWAY_BEAT_SERVICE_ID is required}"
 
-if [[ "${RAILWAY_TOKEN_KIND:-project}" == "account" ]]; then
-  AUTH_HEADER="Authorization: Bearer ${RAILWAY_TOKEN}"
-else
-  AUTH_HEADER="Project-Access-Token: ${RAILWAY_TOKEN}"
-fi
-
-gql() { # gql <json-body> -> response body (fails on transport or GraphQL errors)
-  local body response
-  body="$1"
-  response="$(curl -sSf "$API" -H "$AUTH_HEADER" -H 'Content-Type: application/json' -d "$body")"
-  if jq -e '.errors' <<<"$response" >/dev/null 2>&1; then
-    echo "GraphQL error: $(jq -c '.errors' <<<"$response")" >&2
-    return 1
-  fi
-  printf '%s' "$response"
-}
+# Shared Railway plumbing: RAILWAY_API, AUTH_HEADER (token-kind aware), gql().
+# shellcheck source=scripts/_lib-railway.sh
+. "$(dirname "${BASH_SOURCE[0]}")/_lib-railway.sh"
 
 configure() { # configure <service-id> <ServiceInstanceUpdateInput json> <label>
   gql "$(jq -n --arg s "$1" --arg e "$RAILWAY_ENVIRONMENT_ID" --argjson in "$2" '{
