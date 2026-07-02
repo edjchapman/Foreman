@@ -10,9 +10,10 @@ and [docs/deploy.md](../../docs/deploy.md).
 ## Honest limitations
 
 The provider (v0.6.x) cannot express three settings, and Railway's
-`railway.json` config-as-code doesn't apply to image-sourced services either —
-so after the first `apply` they are set **once** in the dashboard (printed by
-`terraform output manual_steps`):
+`railway.json` config-as-code doesn't apply to image-sourced services either.
+The public GraphQL API *can* express them, so after `apply` they are applied by
+[`scripts/railway-configure.sh`](../../scripts/railway-configure.sh)
+(`make configure` — reads the service ids from `terraform output`):
 
 | Service | Setting | Value |
 |---|---|---|
@@ -22,7 +23,9 @@ so after the first `apply` they are set **once** in the dashboard (printed by
 | beat | Custom Start Command | `uv run --no-dev celery -A config beat -l info` |
 
 They survive image re-pins by the CD script (deploys change `source.image`,
-not service settings), so this is genuinely one-time per platform build.
+not service settings), so this is genuinely one-shot per platform build — and
+because it's scripted, a rebuilt platform is reconfigured with one command
+instead of four dashboard edits.
 
 ## Usage
 
@@ -31,8 +34,10 @@ export RAILWAY_TOKEN=<ACCOUNT token>   # workspace-scoped: Terraform creates the
                                        # (CD uses a narrower PROJECT token — different secret.)
 terraform init
 terraform apply                        # optionally: -var app_version=0.7.0
-terraform output manual_steps          # dashboard one-offs, then set the CI variables:
-terraform output github_ci_variables
+terraform output manual_steps            # the project-token one-off, then:
+RAILWAY_TOKEN_KIND=account \
+  make -C ../.. configure                # apply the provider-gap deploy settings
+terraform output github_ci_variables     # → gh variable set …
 ```
 
 Region: the provider's `regions` attribute mishandles conditional values
@@ -47,7 +52,8 @@ from the sample-import button:
 
 ```bash
 terraform destroy   # → billing drops to the Hobby subscription floor (~$5/mo)
-terraform apply     # → platform back in minutes (re-run manual_steps + CI vars: IDs change)
+terraform apply     # → platform back in minutes; then `make configure` + re-set
+                    #   the CI variables (service IDs change on rebuild)
 ```
 
 ## State

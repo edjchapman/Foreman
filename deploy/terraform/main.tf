@@ -2,8 +2,8 @@
 #
 # Three settings the provider CANNOT express (provider v0.6.x omits them; and
 # Railway's railway.json config-as-code doesn't apply to image-sourced
-# services) are applied once in the dashboard after `terraform apply` — see
-# outputs.manual_steps and docs/deploy.md:
+# services) are applied by scripts/railway-configure.sh (`make configure`)
+# after `terraform apply` — see outputs.manual_steps and docs/deploy.md:
 #   1. web:    pre-deploy command (migrate) + healthcheck path (/readyz)
 #   2. worker: custom start command (celery worker)
 #   3. beat:   custom start command (celery beat)

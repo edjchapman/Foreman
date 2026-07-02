@@ -14,12 +14,12 @@ output "github_ci_variables" {
 }
 
 output "manual_steps" {
-  description = "Dashboard settings the provider cannot express — apply once after the first apply."
+  description = "One-time steps after apply — everything else the provider can't express is scripted."
   value       = <<-EOT
-    1. web    → Settings → Deploy → Pre-Deploy Command: uv run --no-dev python manage.py migrate
-                Settings → Deploy → Healthcheck Path:   /readyz
-    2. worker → Settings → Deploy → Custom Start Command: uv run --no-dev celery -A config worker -l info --concurrency 2
-    3. beat   → Settings → Deploy → Custom Start Command: uv run --no-dev celery -A config beat -l info
-    4. Project Settings → Tokens → create a production project token → gh secret set RAILWAY_TOKEN
+    1. Project Settings → Tokens → create a production project token → gh secret set RAILWAY_TOKEN
+    2. RAILWAY_TOKEN=<that token> make configure
+       (scripts/railway-configure.sh — sets the deploy settings the provider
+        can't express: web pre-deploy migrate + /readyz healthcheck,
+        worker/beat celery start commands)
   EOT
 }

@@ -1,5 +1,5 @@
 .PHONY: help up down build logs migrate makemigrations test lint fmt typecheck audit ci preflight shell \
-        worker beat relay deploy tf-check \
+        worker beat relay deploy configure tf-check \
         check check-links check-anchors stack-check \
         check-commit-msg check-stale-branches sweep-branches lint-md
 
@@ -73,6 +73,9 @@ relay: ## Dispatch the outbox once (no beat) — claims + publishes PENDING even
 
 deploy: ## Deploy VERSION=<x.y.z> to Railway (pins image tags; web gates worker/beat)
 	@./scripts/railway-deploy.sh "$(VERSION)"
+
+configure: ## Post-`terraform apply` one-shot: set the deploy settings the provider can't express
+	@./scripts/railway-configure.sh
 
 tf-check: ## Terraform gate: fmt + validate the platform module (needs terraform CLI)
 	terraform -chdir=deploy/terraform fmt -check -recursive

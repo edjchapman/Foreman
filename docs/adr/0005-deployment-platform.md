@@ -72,7 +72,7 @@ web to `SUCCESS` before touching worker/beat, so new worker code never runs
 ahead of its migrations — the runbook's "migrate as a release step, not per
 replica" made executable.
 
-### 4. Hybrid IaC: Terraform for structure, dashboard for the three gaps
+### 4. Hybrid IaC: Terraform for structure, a script for the three gaps
 
 `railway.json`/`toml` only applies to repo-built services; these are
 image-sourced. The platform is instead declared in
@@ -83,12 +83,14 @@ secrets, every env var, and the public domain. This makes destroy/apply the
 demo's off/on switch and the whole platform rebuildable from nothing.
 
 The provider (v0.6.x) **cannot express three settings** — custom start
-commands (worker/beat), the pre-deploy command, and the healthcheck path — so
-those are one-time dashboard steps, printed by `terraform output manual_steps`
-and documented in [docs/deploy.md](../deploy.md). They survive CD image
-re-pins, so the hybrid is stable, not drift-prone. State stays local and
-git-ignored (it contains generated secrets); losing it is recoverable by
-dashboard-destroy + re-apply.
+commands (worker/beat), the pre-deploy command, and the healthcheck path — but
+the public GraphQL API can, so
+[`scripts/railway-configure.sh`](../../scripts/railway-configure.sh)
+(`make configure`, idempotent) applies them after `apply`; the only remaining
+manual step is creating the CD project token (`terraform output manual_steps`).
+The settings survive CD image re-pins, so the hybrid is automated and stable,
+not drift-prone. State stays local and git-ignored (it contains generated
+secrets); losing it is recoverable by dashboard-destroy + re-apply.
 
 ## Consequences
 
@@ -96,9 +98,10 @@ dashboard-destroy + re-apply.
   for demo data; revisit (Render, or Railway's future managed offerings) if the
   data ever matters.
 - **Community Terraform provider**: modestly maintained, and its three schema
-  gaps mean a hybrid rather than pure IaC. Accepted — the gaps are one-time
-  settings, and the alternative (no IaC) had the same gaps plus manual
-  everything-else.
+  gaps mean a hybrid rather than pure IaC. Accepted — the gaps are stateless
+  settings the configure script covers via the same GraphQL API as CD, and the
+  alternative (no IaC) meant hand-rolling the hard part Terraform provides for
+  free: resource lifecycle, ordering, and the destroy/apply off-switch.
 - **Two token scopes**: Terraform needs an account token; CD uses a
   project-scoped token. Deliberate — the recurring, CI-resident credential is
   the narrow one.
