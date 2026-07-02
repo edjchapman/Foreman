@@ -147,19 +147,21 @@ Then:
 ```bash
 cd deploy/terraform
 terraform init && terraform apply
-terraform output manual_steps         # the four dashboard one-offs below
-terraform output github_ci_variables  # → gh variable set …
+RAILWAY_TOKEN_KIND=account make -C ../.. configure  # provider-gap settings, see below
+terraform output github_ci_variables                # → gh variable set …
 ```
 
 The three settings neither Terraform nor Railway config-as-code can express
-for image-sourced services are set **once** in the dashboard (they survive CD
-image re-pins):
+for image-sourced services *are* expressible via the public GraphQL API, so
+[`scripts/railway-configure.sh`](../scripts/railway-configure.sh)
+(`make configure`) applies them right after `apply` (they survive CD image
+re-pins; the script is idempotent):
 
-- **web**: Deploy → Pre-Deploy Command `uv run --no-dev python manage.py migrate`;
-  Deploy → Healthcheck Path `/readyz` (default 300 s timeout).
-- **worker**: Deploy → Custom Start Command
+- **web**: Pre-Deploy Command `uv run --no-dev python manage.py migrate`;
+  Healthcheck Path `/readyz` (default 300 s timeout).
+- **worker**: Custom Start Command
   `uv run --no-dev celery -A config worker -l info --concurrency 2`.
-- **beat**: Deploy → Custom Start Command
+- **beat**: Custom Start Command
   `uv run --no-dev celery -A config beat -l info`.
 
 Finally create the **project token** (Project Settings → Tokens, `production`)
@@ -175,8 +177,8 @@ sample-import button, so nothing of value lives in the databases:
 
 ```bash
 terraform destroy   # billing drops to the Hobby subscription floor (~$5/mo)
-terraform apply     # back in minutes — re-run the dashboard one-offs and
-                    # update the GitHub repo variables (service IDs change)
+terraform apply     # back in minutes — then `make configure` and update the
+                    # GitHub repo variables (service IDs change on rebuild)
 ```
 
 ## Post-deploy smoke checks
