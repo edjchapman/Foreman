@@ -158,7 +158,7 @@ Beyond the feature work, the repo is operated like a production service:
 - **M5 — ship** *(in progress)*:
   - ✅ **Production hardening** — HTTPS/proxy security settings, WhiteNoise static, non-root image (verified by `manage.py check --deploy`).
   - ✅ **Downloadable report** — streamed CSV of a job's imported records (`GET /api/v1/jobs/{id}/report/` + demo-page download link), completing the advertised pipeline.
-  - ⬜ **Platform deploy** — Railway (managed Postgres + Redis running the published GHCR image; [ADR 0005](docs/adr/0005-deployment-platform.md)). CD machinery + [deploy runbook](docs/deploy.md) landed; public URL pending provisioning.
+  - ⬜ **Platform deploy** — Railway, Terraform-provisioned (`deploy/terraform/` declares the five services + secrets + domain; `terraform destroy`/`apply` is the demo's off/on switch — [ADR 0005](docs/adr/0005-deployment-platform.md)). CD machinery + [deploy runbook](docs/deploy.md) landed; public URL pending provisioning.
   - ⬜ **Case study** — write-up of the reliability story (outbox → idempotency/DLQ/lease → realtime → report), linking the ADRs.
 
 ## Development

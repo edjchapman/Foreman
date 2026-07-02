@@ -1,0 +1,7 @@
+# Local state contains secrets (DB passwords, DJANGO_SECRET_KEY) — never commit.
+*.tfstate
+*.tfstate.*
+.terraform/
+*.tfvars
+!*.tfvars.example
+crash.log

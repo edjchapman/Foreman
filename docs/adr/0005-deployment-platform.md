@@ -35,6 +35,12 @@ usage billing — no need for the `worker -B` fold. The trade accepted: Railway'
 databases are containers with daily volume snapshots (6-day retention), not
 PITR-managed Postgres — tolerable for demo data that any sample job regenerates.
 
+The demo is also **deliberately ephemeral**: `terraform destroy` (§4) drops
+billing to the Hobby subscription floor (~$5/mo) when the demo isn't needed,
+and `apply` rebuilds in minutes. Fly.io would reach a true $0-when-off (no
+subscription) but only by self-managing Postgres/Redis as Fly apps — the $5
+floor buys not operating databases by hand.
+
 ### 2. CD pins semver tags; `:latest` is never tracked
 
 Railway does not watch GHCR, and `railway redeploy` re-runs the *previous*
@@ -56,20 +62,36 @@ web to `SUCCESS` before touching worker/beat, so new worker code never runs
 ahead of its migrations — the runbook's "migrate as a release step, not per
 replica" made executable.
 
-### 4. Config-as-code lives in the repo, not in Railway files
+### 4. Hybrid IaC: Terraform for structure, dashboard for the three gaps
 
 `railway.json`/`toml` only applies to repo-built services; these are
-image-sourced. The committed source of truth is [docs/deploy.md](../deploy.md)
-(topology, env contract, provisioning, rollback), the deploy script, and the
-workflow job. Dashboard-only settings (start commands, pre-deploy, healthcheck,
-domain) are documented step-by-step so the platform is rebuildable from
-nothing.
+image-sourced. The platform is instead declared in
+[`deploy/terraform/`](../../deploy/terraform/README.md) using the community
+Railway provider: project, all five services (the databases are plain
+image + volume services — which is all Railway's "templates" are), generated
+secrets, every env var, and the public domain. This makes destroy/apply the
+demo's off/on switch and the whole platform rebuildable from nothing.
+
+The provider (v0.6.x) **cannot express three settings** — custom start
+commands (worker/beat), the pre-deploy command, and the healthcheck path — so
+those are one-time dashboard steps, printed by `terraform output manual_steps`
+and documented in [docs/deploy.md](../deploy.md). They survive CD image
+re-pins, so the hybrid is stable, not drift-prone. State stays local and
+git-ignored (it contains generated secrets); losing it is recoverable by
+dashboard-destroy + re-apply.
 
 ## Consequences
 
 - **No PITR**: a bad write between daily snapshots is unrecoverable. Accepted
   for demo data; revisit (Render, or Railway's future managed offerings) if the
   data ever matters.
+- **Community Terraform provider**: modestly maintained, and its three schema
+  gaps mean a hybrid rather than pure IaC. Accepted — the gaps are one-time
+  settings, and the alternative (no IaC) had the same gaps plus manual
+  everything-else.
+- **Two token scopes**: Terraform needs an account token; CD uses a
+  project-scoped token. Deliberate — the recurring, CI-resident credential is
+  the narrow one.
 - **Deploy-time-only healthchecks**: continuous liveness is the restart policy;
   an external uptime pinger is a possible follow-up.
 - The $10 hard usage cap can take the demo offline rather than overspend —
