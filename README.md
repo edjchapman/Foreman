@@ -75,6 +75,8 @@ flowchart LR
 
 The **outbox** decouples submission from dispatch; the **relay** is a dumb publisher that never re-reads the job (so it can't race it); the **worker** owns idempotency, retries, and terminal state. See [ADR 0001](docs/adr/0001-transactional-outbox.md) and [ADR 0002](docs/adr/0002-retries-dlq-lease.md) for the rationale.
 
+Three more views — the **job state machine**, a time-ordered **sequence diagram** of the outbox → relay → worker → WebSocket flow, and the **crash-recovery / lease-fencing race** — are in [**docs/architecture.md**](docs/architecture.md).
+
 ## Reliability model
 
 The design is organised around explicit delivery and failure guarantees:
@@ -90,6 +92,10 @@ The design is organised around explicit delivery and failure guarantees:
 | Concurrency | **Non-blocking claims** | `SELECT … FOR UPDATE SKIP LOCKED` (PostgreSQL). |
 
 Failure modes and the crash-window analysis are documented in [ADR 0002](docs/adr/0002-retries-dlq-lease.md).
+
+The [demo page](https://foreman-demo.up.railway.app) drives these states on purpose — here a job has exhausted its retries into `DEAD_LETTER` (the operator can `redrive` it), with the queue's live metrics ticking above:
+
+![The Foreman demo showing a job in the DEAD_LETTER state with a Redrive button, above a live metrics strip reporting the dead-letter count](docs/assets/demo-dead-letter.png)
 
 ## Proven under load
 
