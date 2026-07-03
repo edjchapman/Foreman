@@ -40,3 +40,6 @@ htmlcov/
 .claude/rules
 .claude/settings.local.json
 .mcp.json
+
+# Personal standup / daily work logs — not part of the portfolio repo.
+standups/
