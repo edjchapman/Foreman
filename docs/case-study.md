@@ -24,6 +24,10 @@ POST /api/v1/jobs/ → transactional outbox → relay → idempotent worker
    → live WebSocket status → streamed CSV report
 ```
 
+Diagrams for each of these — the job **state machine**, a time-ordered
+**sequence** of the flow, and the **crash-recovery / lease-fencing race** — are in
+[docs/architecture.md](architecture.md).
+
 ## Never lose a job: the transactional outbox
 
 Submitting a job must write PostgreSQL *and* enqueue Celery work — two systems,
