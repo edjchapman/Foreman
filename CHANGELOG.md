@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.1](https://github.com/edjchapman/Foreman/compare/v0.11.0...v0.11.1) (2026-07-03)
+
+
+### Documentation
+
+* restructure README around signposts to the docs ([#85](https://github.com/edjchapman/Foreman/issues/85)) ([e91d442](https://github.com/edjchapman/Foreman/commit/e91d44208b9b340240cad94231f7c7a5c2db7955))
+
 ## [0.11.0](https://github.com/edjchapman/Foreman/compare/v0.10.3...v0.11.0) (2026-07-03)
 
 
