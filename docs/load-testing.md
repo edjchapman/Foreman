@@ -47,18 +47,30 @@ and the synthetic `submit → terminal` end-to-end lifecycle timing.
 
 ## Baseline
 
-Captured on _<date>_ against _<target: local / Railway>_ with _<N>_ workers, at
-_<-u/-r/-t>_. Replace the placeholders after a real run.
+Captured **2026-07-03** against a **local host stack** — daphne web (single
+process), Celery worker at `--concurrency 4`, Beat relay at the default 1s poll,
+Postgres 16 + Redis — driven headless at **`-u 20 -r 5 -t 90s`**. Reproduce with
+`make load` (or the headless command above) after `make up` + `make worker` +
+`make beat`; numbers scale with hardware, worker concurrency, and the poll
+interval, so treat them as a shape, not an SLA.
 
 | Metric | Value |
 |---|---|
-| Sustained throughput (SUCCEEDED/s) | _tbd_ |
-| Submit latency p50 / p95 (POST) | _tbd_ / _tbd_ |
-| Queue wait p50 / p95 | _tbd_ / _tbd_ |
-| Processing latency p50 / p95 | _tbd_ / _tbd_ |
-| Peak outbox backlog | _tbd_ |
-| Error ratio | _tbd_ |
+| Sustained throughput | **~44 jobs/s** (3,958 processed in the window) |
+| Submit latency p50 / p95 (POST) | 29 ms / 93 ms |
+| Processing latency p50 / p95 | 28 ms / 77 ms |
+| Queue wait p50 / p95 | 0.81 s / 2.1 s |
+| End-to-end p50 / p95 (submit → terminal) | 1.1 s / 1.6 s |
+| Peak outbox backlog | 63 events |
+| Error ratio | 0% (0 of 3,958) |
+
+The shape is the point. **Processing is fast (p95 77 ms) but queue wait dominates
+(p95 2.1 s)** — under sustained load the 1s Beat poll and a bursty ~60-deep
+backlog, not the work itself, set end-to-end latency. That localizes the next
+optimization precisely: `LISTEN/NOTIFY` push dispatch (ADR 0001 /
+[case study](case-study.md#what-id-build-next)) would collapse the queue-wait
+tail without touching the write path. Worker concurrency held at 4 (fully
+utilized) with zero failures and zero dead-letters.
 
 > The numbers are secondary to the loop: **generate load → observe it through the
-> counters and histograms → the reliability claims stop being assertions.** Fill
-> the table from a run once a stack is up.
+> counters and histograms → the reliability claims stop being assertions.**
