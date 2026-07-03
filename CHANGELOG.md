@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.3](https://github.com/edjchapman/Foreman/compare/v0.10.2...v0.10.3) (2026-07-03)
+
+
+### Build System
+
+* multi-stage image + migrate-gated compose ([#79](https://github.com/edjchapman/Foreman/issues/79)) ([adea78e](https://github.com/edjchapman/Foreman/commit/adea78e38a17721b2ecf0e393f60a25319ff76bd))
+
 ## [0.10.2](https://github.com/edjchapman/Foreman/compare/v0.10.1...v0.10.2) (2026-07-03)
 
 
