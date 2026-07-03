@@ -52,4 +52,7 @@ jobs:
           RAILWAY_WEB_SERVICE_ID: ${{ vars.RAILWAY_WEB_SERVICE_ID }}
           RAILWAY_WORKER_SERVICE_ID: ${{ vars.RAILWAY_WORKER_SERVICE_ID }}
           RAILWAY_BEAT_SERVICE_ID: ${{ vars.RAILWAY_BEAT_SERVICE_ID }}
+          # Optional (ADR 0007): empty until the listener service + repo variable exist,
+          # in which case railway-deploy.sh skips it and Beat's poll dispatches.
+          RAILWAY_LISTENER_SERVICE_ID: ${{ vars.RAILWAY_LISTENER_SERVICE_ID }}
         run: make deploy VERSION="$VERSION"

@@ -67,10 +67,37 @@ interval, so treat them as a shape, not an SLA.
 The shape is the point. **Processing is fast (p95 77 ms) but queue wait dominates
 (p95 2.1 s)** — under sustained load the 1s Beat poll and a bursty ~60-deep
 backlog, not the work itself, set end-to-end latency. That localizes the next
-optimization precisely: `LISTEN/NOTIFY` push dispatch (ADR 0001 /
-[case study](case-study.md#what-id-build-next)) would collapse the queue-wait
-tail without touching the write path. Worker concurrency held at 4 (fully
-utilized) with zero failures and zero dead-letters.
+optimization precisely: `LISTEN/NOTIFY` push dispatch would collapse the
+queue-wait tail without touching the write path. Worker concurrency held at 4
+(fully utilized) with zero failures and zero dead-letters.
 
 > The numbers are secondary to the loop: **generate load → observe it through the
 > counters and histograms → the reliability claims stop being assertions.**
+
+## Push-dispatch: before / after ([ADR 0007](adr/0007-listen-notify-dispatch.md))
+
+The bottleneck above was acted on: a Postgres `AFTER INSERT` trigger on the outbox
+notifies on every commit, and the `outbox_listener` process (`make listener`)
+dispatches in milliseconds instead of on the Beat poll. Beat stays as the fallback,
+so this is pure latency, not a correctness change. Same harness (`-u 20 -r 5 -t
+90s`), one clean run each — Beat-poll dispatch vs. listener push-dispatch, read from
+the server-side `foreman_job_queue_wait_seconds` histogram:
+
+| Queue wait | Beat poll (1 s) | LISTEN/NOTIFY | Change |
+|---|:---:|:---:|:---:|
+| p50 | 733 ms | **41 ms** | **~18× faster** |
+| p95 | 1,836 ms | **335 ms** | **~5.5× faster** |
+| p99 | 2,367 ms | **583 ms** | ~4× faster |
+| End-to-end p95 (submit → terminal) | 1.30 s | **0.63 s** | ~2× faster |
+| Throughput | ~41 jobs/s | ~40 jobs/s | unchanged |
+| Errors / dead-letters | 0 | 0 | unchanged |
+
+![Queue-wait latency before and after LISTEN/NOTIFY push-dispatch](assets/load-listen-notify.png)
+
+Two honest details. **Throughput is unchanged** — the system was never
+throughput-bound, so removing the poll latency doesn't add capacity, it removes
+wait. And **processing p95 rose slightly** (≈113 ms → ≈212 ms): push-dispatch
+delivers work to the worker in tighter bursts, so contention shifts from the queue
+to the worker — total latency still falls sharply, but the pressure moves rather
+than vanishing. Reproduce by running `make load` with, then without, `make listener`
+alongside the stack (reset the DB between runs so the histogram is clean).

@@ -139,9 +139,22 @@ echo "beat: pinning image + deploying"
 set_image "$RAILWAY_BEAT_SERVICE_ID"
 BEAT_DEP="$(deploy "$RAILWAY_BEAT_SERVICE_ID")"
 
-# Worker/beat deploy concurrently; polling is serial but the deadline in
-# wait_success is per-service, so a slow worker doesn't eat beat's budget.
+# The push-dispatch listener (ADR 0007) is optional: deploy it only once its service
+# exists (terraform apply + the RAILWAY_LISTENER_SERVICE_ID variable). Until then, the
+# Beat poll above still dispatches, so skipping it is safe.
+LISTENER_DEP=""
+if [ -n "${RAILWAY_LISTENER_SERVICE_ID:-}" ]; then
+  echo "listener: pinning image + deploying"
+  set_image "$RAILWAY_LISTENER_SERVICE_ID"
+  LISTENER_DEP="$(deploy "$RAILWAY_LISTENER_SERVICE_ID")"
+fi
+
+# Worker/beat/listener deploy concurrently; polling is serial but the deadline in
+# wait_success is per-service, so a slow worker doesn't eat the others' budget.
 wait_success "$WORKER_DEP" "$RAILWAY_WORKER_SERVICE_ID" "worker"
 wait_success "$BEAT_DEP" "$RAILWAY_BEAT_SERVICE_ID" "beat"
+if [ -n "$LISTENER_DEP" ]; then
+  wait_success "$LISTENER_DEP" "$RAILWAY_LISTENER_SERVICE_ID" "listener"
+fi
 
-echo "Rollout of ${VERSION} complete — web, worker, and beat all verified."
+echo "Rollout of ${VERSION} complete — web, worker, beat, and listener (if enabled) verified."

@@ -15,9 +15,9 @@ whole platform from nothing. Decision rationale lives in
 
 ## Topology
 
-One Railway project (`foreman`), one environment (`production`), five services.
-Region: EU West (Amsterdam, `europe-west4`) — fall back to the default US
-region if EU selection is plan-gated.
+One Railway project (`foreman`), one environment (`production`), five services
+(plus an optional sixth, `listener`). Region: EU West (Amsterdam,
+`europe-west4`) — fall back to the default US region if EU selection is plan-gated.
 
 | Service | Source | Command / settings |
 |---|---|---|
@@ -26,6 +26,7 @@ region if EU selection is plan-gated.
 | `web` | `ghcr.io/edjchapman/foreman:<semver>` | Image default CMD (daphne, port 8000). Healthcheck path `/readyz`. Pre-deploy command `python manage.py migrate`. Public domain generated (target port 8000). |
 | `worker` | same image | Start command `celery -A config worker -l info --concurrency 2` (`--concurrency 2` caps fork-per-visible-CPU RAM cost). The image puts the `--no-dev` venv on `PATH`, so the binary runs directly (no `uv` in the runtime image). |
 | `beat` | same image | Start command `celery -A config beat -l info`. Exactly 1 replica, always — two Beats double-schedule. The `celerybeat-schedule` file on ephemeral FS is fine (re-seeds from settings). |
+| `listener` *(optional)* | same image | Start command `python manage.py outbox_listener`. LISTEN/NOTIFY **push-dispatch** ([ADR 0007](adr/0007-listen-notify-dispatch.md)) — dispatches the outbox the instant a job commits, so the Beat poll above becomes a fallback. A latency optimization, not a delivery dependency: the stack is correct without it. CD deploys it only once `RAILWAY_LISTENER_SERVICE_ID` is set. |
 
 App services talk to Postgres/Redis over Railway **private networking**
 (`*.railway.internal` — the templates' default `DATABASE_URL`/`REDIS_URL`

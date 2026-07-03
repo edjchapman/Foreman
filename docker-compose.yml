@@ -111,5 +111,26 @@ services:
       - ./:/app
       - /app/.venv  # anonymous volume: keep the image's venv, not a shadowing host .venv
 
+  # Push-dispatch: LISTENs for outbox NOTIFYs and dispatches instantly (ADR 0007).
+  # Beat above stays as the fallback poll, so this is a latency optimization, not a
+  # delivery dependency — the stack is correct with or without it.
+  listener:
+    build: .
+    command: python manage.py outbox_listener
+    environment: *app-env
+    # Ignore the image's HEALTHCHECK — it probes :8000/readyz, which only web serves.
+    healthcheck:
+      disable: true
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./:/app
+      - /app/.venv  # anonymous volume: keep the image's venv, not a shadowing host .venv
+
 volumes:
   pgdata:

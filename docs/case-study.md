@@ -197,13 +197,24 @@ without multiprocess mode or a Pushgateway. The counter's one honest boundary:
 `redrive` and retention pruning can dent monotonicity, which `rate()` tolerates
 as a reset. ([ADR 0006](adr/0006-load-testing-metrics.md))
 
+## Act on the measurement: push-dispatch
+
+The load test didn't just produce numbers, it produced a *next task*: queue wait
+dominated because dispatch waited on the 1 s Beat poll. So the poll came off the
+common path. A Postgres `AFTER INSERT` trigger on the outbox `pg_notify`s on every
+commit (transactional delivery, for free), and an `outbox_listener` process
+dispatches on the signal in milliseconds — with **Beat kept as the fallback**, so a
+missed notification still heals on the next poll and delivery stays at-least-once.
+The write path never changed, exactly as anticipated. Paired before/after: queue
+wait **p50 733 ms → 41 ms**, **p95 1.84 s → 0.34 s**, end-to-end latency halved,
+throughput and the zero-failure result unchanged.
+([ADR 0007](adr/0007-listen-notify-dispatch.md))
+
 ## What I'd build next
 
-In rough order of what the current design already anticipates:
-`LISTEN/NOTIFY` to replace outbox polling (the write path wouldn't change),
-OpenTelemetry traces spanning API → outbox → worker → realtime, WebSocket metrics
-and per-connection auth, and remote CSV sources (`s3://`, `https://`) behind the
-existing ingest seam.
+OpenTelemetry traces spanning API → outbox → worker → realtime; WebSocket metrics
+and per-connection auth; remote CSV sources (`s3://`, `https://`) behind the
+existing ingest seam; and relaxing the now-fallback Beat poll to cut idle DB load.
 
 ---
 
