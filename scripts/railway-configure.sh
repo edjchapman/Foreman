@@ -39,6 +39,8 @@ if [[ -z "${RAILWAY_ENVIRONMENT_ID:-}" ]]; then
   RAILWAY_WEB_SERVICE_ID="$(jq -re '.RAILWAY_WEB_SERVICE_ID' <<<"$ids")"
   RAILWAY_WORKER_SERVICE_ID="$(jq -re '.RAILWAY_WORKER_SERVICE_ID' <<<"$ids")"
   RAILWAY_BEAT_SERVICE_ID="$(jq -re '.RAILWAY_BEAT_SERVICE_ID' <<<"$ids")"
+  # Optional — present only after the listener service is added (ADR 0007).
+  RAILWAY_LISTENER_SERVICE_ID="$(jq -r '.RAILWAY_LISTENER_SERVICE_ID // empty' <<<"$ids")"
 fi
 : "${RAILWAY_WEB_SERVICE_ID:?RAILWAY_WEB_SERVICE_ID is required}"
 : "${RAILWAY_WORKER_SERVICE_ID:?RAILWAY_WORKER_SERVICE_ID is required}"
@@ -69,5 +71,12 @@ configure "$RAILWAY_WORKER_SERVICE_ID" '{
 configure "$RAILWAY_BEAT_SERVICE_ID" '{
   "startCommand": "celery -A config beat -l info"
 }' "beat (celery start command)"
+
+# Optional push-dispatch listener (ADR 0007) — only if its service has been provisioned.
+if [[ -n "${RAILWAY_LISTENER_SERVICE_ID:-}" ]]; then
+  configure "$RAILWAY_LISTENER_SERVICE_ID" '{
+    "startCommand": "python manage.py outbox_listener"
+  }' "listener (outbox push-dispatch start command)"
+fi
 
 echo "Deploy settings applied — they take effect from the next deployment of each service."

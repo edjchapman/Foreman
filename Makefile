@@ -1,5 +1,5 @@
 .PHONY: help up down clean build logs migrate makemigrations test e2e load lint fmt typecheck audit ci preflight shell \
-        worker beat relay deploy configure tf-check \
+        worker beat relay listener deploy configure tf-check \
         check check-links check-anchors stack-check \
         check-commit-msg check-stale-branches sweep-branches lint-md
 
@@ -78,6 +78,9 @@ beat: ## Run Celery beat — schedules the outbox relay
 
 relay: ## Dispatch the outbox once (no beat) — claims + publishes PENDING events
 	uv run python manage.py shell -c "from jobs.tasks import dispatch_outbox; print(dispatch_outbox())"
+
+listener: ## Run the outbox push-dispatch listener (LISTEN/NOTIFY — ADR 0007; Postgres only)
+	uv run python manage.py outbox_listener
 
 # === Deploy (M5: Railway — see docs/deploy.md) ===
 

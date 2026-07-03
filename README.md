@@ -93,13 +93,18 @@ Failure modes and the crash-window analysis are documented in [ADR 0002](docs/ad
 
 ## Proven under load
 
-The guarantees above are **measured, not asserted**. A [Locust harness](load/) drives the real submit → outbox → worker pipeline while `rate()`-able counters and latency histograms on `/metrics` (added in [ADR 0006](docs/adr/0006-load-testing-metrics.md)) observe it. A local baseline — Celery `--concurrency 4`, Beat relay at the default 1 s poll, driven at `-u 20 -r 5 -t 90s`:
+The guarantees above are **measured, not asserted**. A [Locust harness](load/) drives the real submit → outbox → worker pipeline while `rate()`-able counters and latency histograms on `/metrics` (added in [ADR 0006](docs/adr/0006-load-testing-metrics.md)) observe it.
 
-| Throughput | Processing p95 | Submit p95 | Failures |
-|:---:|:---:|:---:|:---:|
-| **~44 jobs/s** | **77 ms** | **93 ms** | **0 / 3,958** |
+The baseline load test found the shape of the latency: processing is fast, but **queue wait dominated** — under load the 1 s Beat poll set end-to-end latency, not the work. So the dispatch phase got **`LISTEN/NOTIFY` push-dispatch** ([ADR 0007](docs/adr/0007-listen-notify-dispatch.md)): a Postgres trigger notifies on every outbox commit and a listener dispatches in milliseconds, with Beat kept as the fallback. Same harness (`-u 20 -r 5 -t 90s`), before and after:
 
-The shape is the story: processing is fast (p95 77 ms) but **queue wait dominates** (p95 2.1 s) — under load the 1 s Beat poll and a bursty ~60-deep backlog set end-to-end latency, not the work. That pinpoints the next optimization (`LISTEN/NOTIFY` push dispatch) to the dispatch phase and quantifies its payoff. Full method, PromQL, and the complete table are in [**docs/load-testing.md**](docs/load-testing.md).
+| Dispatch | Queue-wait p95 | Queue-wait p50 | End-to-end p95 | Throughput | Failures |
+|---|:---:|:---:|:---:|:---:|:---:|
+| Beat poll (1 s) | 1.84 s | 0.73 s | 1.30 s | ~41 jobs/s | **0** |
+| **LISTEN/NOTIFY** | **0.34 s** | **0.04 s** | **0.63 s** | ~40 jobs/s | **0** |
+
+![Queue-wait latency before and after LISTEN/NOTIFY push-dispatch — p50 and p95 both fall sharply](docs/assets/load-listen-notify.png)
+
+Push-dispatch cut queue-wait **p95 ~5.5×** and **p50 ~18×**, halving end-to-end latency, while throughput and the zero-failure guarantee held. The system was never throughput-bound — the win was the poll latency, and the measurement pinpointed exactly where to spend the effort. Full method, PromQL, and the complete tables are in [**docs/load-testing.md**](docs/load-testing.md).
 
 ## Tech stack
 
