@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.2](https://github.com/edjchapman/Foreman/compare/v0.11.1...v0.11.2) (2026-07-03)
+
+
+### Documentation
+
+* refresh demo imagery for the restyled page ([#87](https://github.com/edjchapman/Foreman/issues/87)) ([33a428a](https://github.com/edjchapman/Foreman/commit/33a428a418f356f911af65d9510aaac774024a2a))
+
 ## [0.11.1](https://github.com/edjchapman/Foreman/compare/v0.11.0...v0.11.1) (2026-07-03)
 
 
