@@ -29,6 +29,7 @@ Submit a job (e.g. a property CSV import) → the API records it atomically and 
 - [Highlights](#highlights)
 - [Architecture](#architecture)
 - [Reliability model](#reliability-model)
+- [Proven under load](#proven-under-load)
 - [Tech stack](#tech-stack)
 - [Quickstart](#quickstart)
 - [API](#api)
@@ -44,7 +45,8 @@ Submit a job (e.g. a property CSV import) → the API records it atomically and 
 - **Retries, backoff & dead-letter** — transient failures retry with capped, full-jitter exponential backoff; poison inputs fail fast; exhausted jobs land in a dead-letter state an operator can `redrive`. See [ADR 0002](docs/adr/0002-retries-dlq-lease.md).
 - **Crash recovery** — a worker lease + reaper reclaim a job whose worker died mid-flight, and a **fencing token** stops a resumed zombie worker from clobbering the row.
 - **Non-blocking, horizontal claims** — the relay and requeue scans use `SELECT … FOR UPDATE SKIP LOCKED`, so parallel workers claim disjoint rows without contending.
-- **Observable & operable** — structured JSON logs at every state transition, DB-derived Prometheus metrics (queue depth, dispatch lag, dead-letter count) on `/metrics`, split liveness/readiness probes, and an operator [runbook](docs/runbook.md). See [ADR 0003](docs/adr/0003-observability.md).
+- **Observable & operable** — structured JSON logs at every state transition, DB-derived Prometheus metrics on `/metrics` (queue depth, dispatch lag, dead-letter count, plus `rate()`-able throughput counters and latency histograms), split liveness/readiness probes, and an operator [runbook](docs/runbook.md). See [ADR 0003](docs/adr/0003-observability.md) & [ADR 0006](docs/adr/0006-load-testing-metrics.md).
+- **Proven under load** — a [Locust harness](load/) drives the real pipeline while those metrics measure it: **~44 jobs/s with zero failures** and **p95 processing latency of 77 ms** in a local baseline. The guarantees above are observed, not asserted — see [Proven under load](#proven-under-load).
 - **Live status over WebSockets** — a job's `PENDING → … → terminal` transitions stream to `ws/jobs/<id>/` via Django Channels (snapshot on connect, then deltas). The fan-out is **best-effort**, so the realtime layer never changes whether a job succeeds. See [ADR 0004](docs/adr/0004-realtime-websockets.md).
 - **Run like a service** — `mypy --strict`, ruff (incl. bandit), a 90% coverage floor against a real PostgreSQL, ADRs, automated releases, and a hardened supply chain (see [Engineering practices](#engineering-practices)).
 
@@ -88,6 +90,16 @@ The design is organised around explicit delivery and failure guarantees:
 | Concurrency | **Non-blocking claims** | `SELECT … FOR UPDATE SKIP LOCKED` (PostgreSQL). |
 
 Failure modes and the crash-window analysis are documented in [ADR 0002](docs/adr/0002-retries-dlq-lease.md).
+
+## Proven under load
+
+The guarantees above are **measured, not asserted**. A [Locust harness](load/) drives the real submit → outbox → worker pipeline while `rate()`-able counters and latency histograms on `/metrics` (added in [ADR 0006](docs/adr/0006-load-testing-metrics.md)) observe it. A local baseline — Celery `--concurrency 4`, Beat relay at the default 1 s poll, driven at `-u 20 -r 5 -t 90s`:
+
+| Throughput | Processing p95 | Submit p95 | Failures |
+|:---:|:---:|:---:|:---:|
+| **~44 jobs/s** | **77 ms** | **93 ms** | **0 / 3,958** |
+
+The shape is the story: processing is fast (p95 77 ms) but **queue wait dominates** (p95 2.1 s) — under load the 1 s Beat poll and a bursty ~60-deep backlog set end-to-end latency, not the work. That pinpoints the next optimization (`LISTEN/NOTIFY` push dispatch) to the dispatch phase and quantifies its payoff. Full method, PromQL, and the complete table are in [**docs/load-testing.md**](docs/load-testing.md).
 
 ## Tech stack
 
