@@ -26,7 +26,7 @@ def demo_page(page: Page) -> Page:
 
 
 def test_demo_page_loads(demo_page: Page) -> None:
-    expect(demo_page).to_have_title("Foreman — live job status")
+    expect(demo_page).to_have_title("Foreman — live event-driven pipeline")
     expect(demo_page.get_by_role("button", name="Import sample CSV")).to_be_visible()
     expect(demo_page.get_by_role("button", name="Try an unsupported source")).to_be_visible()
 
@@ -51,8 +51,10 @@ def test_sample_import_succeeds_live_over_websocket(demo_page: Page) -> None:
 
     demo_page.get_by_role("button", name="Import sample CSV").click()
 
-    expect(demo_page.get_by_text("SUCCEEDED")).to_be_visible(timeout=STATUS_TIMEOUT_MS)
-    expect(demo_page.get_by_text("attempt 1")).to_be_visible()
+    # Assert on the status *badge*, not page text: the scenario copy now also mentions
+    # SUCCEEDED/FAILED/DEAD_LETTER, so a bare get_by_text would be ambiguous.
+    expect(demo_page.locator("#status")).to_have_text("SUCCEEDED", timeout=STATUS_TIMEOUT_MS)
+    expect(demo_page.locator("#attempts")).to_have_text("1")
     expect(demo_page.get_by_text('"rows_imported": 5')).to_be_visible()
 
     # The status updates must have arrived over the job's WebSocket, not polling.
@@ -71,6 +73,43 @@ def test_sample_import_succeeds_live_over_websocket(demo_page: Page) -> None:
 def test_unsupported_source_fails_without_retries(demo_page: Page) -> None:
     demo_page.get_by_role("button", name="Try an unsupported source").click()
 
-    expect(demo_page.get_by_text("FAILED")).to_be_visible(timeout=STATUS_TIMEOUT_MS)
+    expect(demo_page.locator("#status")).to_have_text("FAILED", timeout=STATUS_TIMEOUT_MS)
     # Non-retryable poison: exactly one attempt, no dead-letter churn.
-    expect(demo_page.get_by_text("attempt 1")).to_be_visible()
+    expect(demo_page.locator("#attempts")).to_have_text("1")
+
+
+def test_flaky_job_retries_then_recovers_over_websocket(demo_page: Page) -> None:
+    """A transient fault retries with backoff and recovers on its own — the attempt
+    counter climbs past 1 and the job still lands SUCCEEDED, all over the socket."""
+    frames: list[str] = []
+    demo_page.on(
+        "websocket",
+        lambda ws: ws.on("framereceived", lambda payload: frames.append(str(payload))),
+    )
+
+    demo_page.get_by_role("button", name="Inject a flaky job").click()
+
+    expect(demo_page.locator("#status")).to_have_text("SUCCEEDED", timeout=STATUS_TIMEOUT_MS)
+    expect(demo_page.get_by_text('"rows_imported": 5')).to_be_visible()
+    # Recovery, not first-try success: at least one earlier attempt was retried.
+    retried = any(re.search(r'"attempts":\s*[2-9]', frame) for frame in frames)
+    assert retried, f"expected a retry (attempts >= 2) before success, frames: {frames}"
+
+
+def test_dead_letter_then_redrive_recovers(demo_page: Page) -> None:
+    """A job exhausts its retries into DEAD_LETTER; an operator redrive (once the
+    simulated outage has healed) drives the same job back to SUCCEEDED."""
+    demo_page.get_by_role("button", name="Send a job to the dead-letter queue").click()
+
+    expect(demo_page.locator("#status")).to_have_text("DEAD_LETTER", timeout=STATUS_TIMEOUT_MS)
+    redrive = demo_page.get_by_role("button", name="Redrive from dead-letter")
+    expect(redrive).to_be_visible()
+
+    # The fault heals `heal-after` seconds after submission; wait out the window (plus a
+    # margin) so the redriven run imports cleanly instead of dead-lettering again.
+    heal_after = int(demo_page.locator("body").get_attribute("data-heal-after") or "20")
+    demo_page.wait_for_timeout((heal_after + 5) * 1000)
+
+    redrive.click()
+    expect(demo_page.locator("#status")).to_have_text("SUCCEEDED", timeout=STATUS_TIMEOUT_MS)
+    expect(demo_page.get_by_text('"rows_imported": 5')).to_be_visible()

@@ -141,3 +141,31 @@ def test_histogram_buckets_are_cumulative_and_monotonic(api_client):
     assert counts[-1] == 2.0  # +Inf holds every observation
     # 0.3s ≤ 0.5 but 3.5s > 0.5, so exactly one observation sits at le="0.5".
     assert _sample(body, 'foreman_job_processing_seconds_bucket{le="0.5"}') == 1.0
+
+
+# --- JSON summary endpoint (the demo UI's data source) ----------------------------
+
+
+def test_metrics_summary_returns_zero_filled_snapshot(api_client):
+    resp = api_client.get("/api/v1/metrics/summary")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    # Every status key present and zero-filled, so the demo's DLQ tile always renders.
+    assert body["jobs_by_status"] == dict.fromkeys(Job.Status.values, 0)
+    assert body["outbox_pending"] == 0
+    assert body["retry_scheduled"] == 0
+
+
+def test_metrics_summary_counts_dead_letter_and_retry_depth(api_client):
+    JobFactory(status=Job.Status.DEAD_LETTER)
+    JobFactory(  # a job waiting on backoff → retry-queue depth
+        status=Job.Status.PENDING, available_at=timezone.now() + timedelta(minutes=5)
+    )
+    OutboxEvent.objects.create(job=JobFactory(), event_type="job.created", payload={})
+
+    body = api_client.get("/api/v1/metrics/summary").json()
+
+    assert body["jobs_by_status"]["DEAD_LETTER"] == 1
+    assert body["retry_scheduled"] == 1
+    assert body["outbox_pending"] == 1

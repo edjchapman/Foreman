@@ -19,7 +19,13 @@ Submit a job (e.g. a property CSV import) → the API records it atomically and 
 
 ## Live demo
 
-[Submit a sample import](https://foreman-demo.up.railway.app) and watch it move through the pipeline **live over a WebSocket** (no polling — the [E2E suite](e2e/test_demo_page.py) asserts it):
+[Open the demo](https://foreman-demo.up.railway.app) and drive the pipeline yourself — each scenario streams **live over a WebSocket** (no polling — the [E2E suite](e2e/test_demo_page.py) asserts it), with the queue's own metrics ticking beside it:
+
+- **Import sample CSV** — the happy path to `SUCCEEDED` + a downloadable report.
+- **Inject a flaky job** — a transient failure that **retries with backoff and recovers on its own** (watch the attempt counter climb).
+- **Send a job to the dead-letter queue** — retries exhaust into `DEAD_LETTER`, then **redrive** it (the operator recovery action) and watch it heal.
+- **Try an unsupported source** — poison input that **fails fast**, no wasted retries.
+
 
 ![A sample CSV import going PENDING → SUCCEEDED live over a WebSocket, then offering the imported records as a CSV report](docs/assets/demo.gif)
 
@@ -151,9 +157,11 @@ The current API is `v1`:
 | `GET` | `/api/v1/jobs/{id}/` | Job status, progress, result, error. |
 | `GET` | `/api/v1/jobs/` | List jobs (paginated). |
 | `GET` | `/api/v1/jobs/{id}/report/` | Download the imported records as CSV (streamed; `409` until the job has `SUCCEEDED`). |
+| `POST` | `/api/v1/jobs/{id}/redrive/` | Redrive a dead-letter job back into the pipeline (`409` unless it's `DEAD_LETTER`). |
 | `GET` | `/healthz` | Liveness — the process is up (no dependency I/O). |
 | `GET` | `/readyz` | Readiness — database + broker reachable (`503` if not). |
 | `GET` | `/metrics` | Prometheus metrics — queue depth, dispatch lag, dead-letter count. |
+| `GET` | `/api/v1/metrics/summary` | JSON queue snapshot (jobs-by-status, outbox backlog, retry/DLQ depth) — powers the demo's live strip. |
 | `WS` | `/ws/jobs/{id}/` | Live status/progress stream — snapshot on connect, then deltas. |
 
 A submitted job is recorded `PENDING` alongside its outbox event in one transaction; the relay publishes it and the worker drives it to `SUCCEEDED` (or `FAILED`).

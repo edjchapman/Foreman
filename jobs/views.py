@@ -1,5 +1,6 @@
 from typing import Any
 
+from django.conf import settings
 from django.db import connection
 from django.http import StreamingHttpResponse
 from django.http.response import HttpResponseBase
@@ -16,9 +17,10 @@ from rest_framework.views import APIView
 from config import celery_app
 
 from .models import Job
+from .realtime import notify_job
 from .reports import report_filename, stream_report
 from .serializers import JobCreateSerializer, JobSerializer
-from .services import submit_job
+from .services import redrive_dead_letter, submit_job
 
 
 class JobViewSet(
@@ -72,6 +74,28 @@ class JobViewSet(
         response = StreamingHttpResponse(stream_report(job), content_type="text/csv; charset=utf-8")
         response["Content-Disposition"] = f'attachment; filename="{report_filename(job)}"'
         return response
+
+    @action(detail=True, methods=["post"])
+    def redrive(self, request: Request, pk: str | None = None) -> Response:
+        """Redrive a dead-letter job back into the pipeline (the operator recovery action).
+
+        Resets the job to PENDING with a fresh retry budget (see
+        `jobs.services.redrive_dead_letter`); the `recover_jobs` scan re-dispatches it —
+        no new dispatch path. 409 (not 404) for a job that exists but isn't DEAD_LETTER:
+        the resource is real, its state just isn't redrivable.
+        """
+        job = self.get_object()
+        if job.status != Job.Status.DEAD_LETTER:
+            return Response(
+                {"detail": "Only dead-letter jobs can be redriven.", "status": job.status},
+                status=status.HTTP_409_CONFLICT,
+            )
+        redrive_dead_letter([job.id])
+        job.refresh_from_db()
+        # Broadcast the DEAD_LETTER → PENDING flip so any open status socket updates at once.
+        notify_job(job)
+        data = JobSerializer(job, context=self.get_serializer_context()).data
+        return Response(data, status=status.HTTP_200_OK)
 
 
 def check_database() -> bool:
@@ -142,3 +166,9 @@ class DemoView(TemplateView):
     """
 
     template_name = "jobs/demo.html"
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        # Single source of truth for the dead-letter demo's heal window (jobs/faults.py).
+        context["heal_after_seconds"] = settings.DEMO_HEAL_AFTER_SECONDS
+        return context

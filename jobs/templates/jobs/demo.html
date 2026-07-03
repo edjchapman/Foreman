@@ -3,18 +3,35 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Foreman — live job status</title>
+  <title>Foreman — live event-driven pipeline</title>
   <style>
-    :root { color-scheme: light dark; }
-    body { font: 16px/1.5 system-ui, sans-serif; max-width: 46rem; margin: 3rem auto; padding: 0 1rem; }
+    :root { color-scheme: light dark; --line: #8883; --muted: #888; }
+    /* Author display rules below (e.g. a#report) would otherwise beat [hidden]'s
+       UA display:none, so hidden panels/links leak through — force it. */
+    [hidden] { display: none !important; }
+    body { font: 16px/1.5 system-ui, sans-serif; max-width: 52rem; margin: 2.5rem auto; padding: 0 1rem; }
     h1 { margin-bottom: 0.25rem; }
-    p.lede { color: #666; margin-top: 0; }
+    h2 { font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 2rem 0 0.75rem; }
+    p.lede { color: var(--muted); margin-top: 0; }
     button { font: inherit; padding: 0.5rem 0.9rem; margin: 0.25rem 0.5rem 0.25rem 0; cursor: pointer;
              border: 1px solid #8884; border-radius: 6px; background: #f4f4f5; }
     button:hover { background: #e8e8ea; }
-    #panel { margin-top: 1.5rem; padding: 1rem 1.25rem; border: 1px solid #8883; border-radius: 10px; }
-    .row { display: flex; gap: 0.5rem; align-items: baseline; margin-bottom: 0.5rem; }
-    .id { font-family: ui-monospace, monospace; color: #888; font-size: 0.85em; }
+    button:disabled { opacity: 0.5; cursor: default; }
+    .scenarios { display: grid; gap: 0.5rem; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); }
+    .scenario { border: 1px solid var(--line); border-radius: 10px; padding: 0.85rem 1rem; }
+    .scenario p { margin: 0.4rem 0 0; font-size: 0.85rem; color: var(--muted); }
+
+    /* Live metrics strip */
+    .metrics { display: grid; gap: 0.6rem; grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr)); }
+    .metric { border: 1px solid var(--line); border-radius: 10px; padding: 0.6rem 0.75rem; text-align: center; }
+    .metric .n { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .metric .k { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+    .metric.dlq .n { color: #dc2626; }
+
+    /* Job panel */
+    #panel { margin-top: 0.5rem; padding: 1rem 1.25rem; border: 1px solid var(--line); border-radius: 10px; }
+    .row { display: flex; gap: 0.5rem; align-items: baseline; margin-bottom: 0.5rem; flex-wrap: wrap; }
+    .id { font-family: ui-monospace, monospace; color: var(--muted); font-size: 0.85em; }
     .badge { font-size: 0.8rem; font-weight: 600; padding: 0.15rem 0.55rem; border-radius: 999px;
              color: #fff; background: #9ca3af; letter-spacing: 0.02em; }
     .badge.PENDING { background: #9ca3af; }
@@ -23,32 +40,104 @@
     .badge.FAILED, .badge.DEAD_LETTER { background: #dc2626; }
     .track { height: 10px; background: #8882; border-radius: 999px; overflow: hidden; margin: 0.75rem 0; }
     .fill { height: 100%; width: 0; background: #3b82f6; transition: width 0.3s ease; }
-    pre { background: #8881; padding: 0.75rem; border-radius: 6px; overflow: auto; font-size: 0.85em; }
+
+    /* Pipeline strip: Submitted → Queued → Worker → Result */
+    .pipeline { display: flex; align-items: stretch; gap: 0; margin: 0.75rem 0; }
+    .stage { flex: 1; text-align: center; padding: 0.5rem 0.35rem; border: 1px solid var(--line);
+             border-right: 0; font-size: 0.8rem; color: var(--muted); position: relative; background: #8881; }
+    .stage:first-child { border-radius: 8px 0 0 8px; }
+    .stage:last-child { border-right: 1px solid var(--line); border-radius: 0 8px 8px 0; }
+    .stage .t { font-weight: 600; display: block; color: inherit; }
+    .stage .s { font-size: 0.72rem; }
+    .stage.done { color: #16a34a; background: #16a34a1a; }
+    .stage.active { color: #3b82f6; background: #3b82f61a; font-weight: 600; }
+    .stage.fail { color: #dc2626; background: #dc26261a; }
+
+    pre { background: #8881; padding: 0.75rem; border-radius: 6px; overflow: auto; font-size: 0.85em; margin: 0.5rem 0 0; }
+    a#report { display: inline-block; margin-top: 0.75rem; }
+    #redrive { background: #fde68a; border-color: #f59e0b88; }
+    footer { margin-top: 2.5rem; color: var(--muted); font-size: 0.85rem; }
+    a { color: #3b82f6; }
   </style>
 </head>
-<body>
+<body data-heal-after="{{ heal_after_seconds }}">
   <h1>Foreman</h1>
-  <p class="lede">Submit a property-CSV import and watch it move through the pipeline live, over a WebSocket.</p>
+  <p class="lede">An event-driven job pipeline you can <strong>watch</strong>: submit a property-CSV import
+    and see it move through a transactional outbox, an idempotent worker, retries with backoff, a dead-letter
+    queue, and operator redrive — live over a WebSocket, with the queue's own metrics ticking beside it.</p>
 
-  <button id="run-sample">Import sample CSV</button>
-  <button id="run-bad">Try an unsupported source</button>
+  <h2>Live queue metrics</h2>
+  <div class="metrics" id="metrics">
+    <div class="metric"><div class="n" id="m-PENDING">–</div><div class="k">Pending</div></div>
+    <div class="metric"><div class="n" id="m-PROCESSING">–</div><div class="k">Processing</div></div>
+    <div class="metric"><div class="n" id="m-SUCCEEDED">–</div><div class="k">Succeeded</div></div>
+    <div class="metric"><div class="n" id="m-FAILED">–</div><div class="k">Failed</div></div>
+    <div class="metric dlq"><div class="n" id="m-DEAD_LETTER">–</div><div class="k">Dead-letter</div></div>
+    <div class="metric"><div class="n" id="m-outbox">–</div><div class="k">Outbox backlog</div></div>
+    <div class="metric"><div class="n" id="m-retry">–</div><div class="k">Retry queue</div></div>
+  </div>
+
+  <h2>Run a scenario</h2>
+  <div class="scenarios">
+    <div class="scenario">
+      <button id="run-sample">Import sample CSV</button>
+      <p>Happy path: outbox → relay → worker → <strong>SUCCEEDED</strong>, then a downloadable CSV report.</p>
+    </div>
+    <div class="scenario">
+      <button id="run-flaky">Inject a flaky job</button>
+      <p>Fails, then <strong>retries with backoff</strong> and recovers automatically — watch <em>attempt</em> climb.</p>
+    </div>
+    <div class="scenario">
+      <button id="run-dlq">Send a job to the dead-letter queue</button>
+      <p>Exhausts its retries into <strong>DEAD_LETTER</strong>. Then <em>redrive</em> it — the operator recovery action.</p>
+    </div>
+    <div class="scenario">
+      <button id="run-bad">Try an unsupported source</button>
+      <p>Poison input <strong>fails fast</strong> (<strong>FAILED</strong>) with no wasted retries.</p>
+    </div>
+  </div>
 
   <section id="panel" hidden>
     <div class="row"><strong>Job</strong> <span class="id" id="job-id"></span></div>
-    <div class="row"><span class="badge" id="status">…</span> <span>attempt <span id="attempts">0</span></span></div>
+    <div class="row">
+      <span class="badge" id="status">…</span>
+      <span>attempt <span id="attempts">0</span></span>
+      <button id="redrive" hidden>Redrive from dead-letter</button>
+    </div>
+
+    <div class="pipeline" id="pipeline">
+      <div class="stage" data-stage="submitted"><span class="t">Submitted</span><span class="s">API + outbox (1 tx)</span></div>
+      <div class="stage" data-stage="queued"><span class="t">Queued</span><span class="s">relay · SKIP LOCKED</span></div>
+      <div class="stage" data-stage="worker"><span class="t">Worker</span><span class="s">idempotent import</span></div>
+      <div class="stage" data-stage="result"><span class="t">Result</span><span class="s">terminal state</span></div>
+    </div>
+
     <div class="track"><div class="fill" id="progress"></div></div>
     <pre id="detail"></pre>
     <a id="report" hidden download>Download report (CSV)</a>
   </section>
+
+  <footer>
+    No polling — status is pushed over <code>ws/jobs/&lt;id&gt;/</code> (the E2E suite asserts it). Metrics are derived
+    live from Postgres at <code>/api/v1/metrics/summary</code>. Source &amp; the full reliability write-up:
+    <a href="https://github.com/edjchapman/foreman">github.com/edjchapman/foreman</a>.
+  </footer>
 
   {% verbatim %}
   <script>
     const $ = (id) => document.getElementById(id);
     const getCookie = (n) =>
       document.cookie.split("; ").find((r) => r.startsWith(n + "="))?.split("=")[1];
+    const HEAL_AFTER = document.body.dataset.healAfter || "20";
+
+    let ws = null;
+    let currentId = null;
 
     async function submit(payload) {
+      if (ws) { ws.close(); ws = null; }
       $("panel").hidden = false;
+      $("report").hidden = true;
+      $("redrive").hidden = true;
       $("detail").textContent = "submitting…";
       const res = await fetch("/api/v1/jobs/", {
         method: "POST",
@@ -56,6 +145,7 @@
         body: JSON.stringify({ job_type: "property_csv_import", payload }),
       });
       const job = await res.json();
+      currentId = job.id;
       render(job);
       stream(job.id);
     }
@@ -63,8 +153,34 @@
     function stream(id) {
       // Browser sends an Origin header matching this page → AllowedHostsOriginValidator passes.
       const scheme = location.protocol === "https:" ? "wss" : "ws";
-      const ws = new WebSocket(`${scheme}://${location.host}/ws/jobs/${id}/`);
+      ws = new WebSocket(`${scheme}://${location.host}/ws/jobs/${id}/`);
       ws.onmessage = (e) => render(JSON.parse(e.data));
+    }
+
+    async function redrive() {
+      if (!currentId) return;
+      $("redrive").disabled = true;
+      await fetch(`/api/v1/jobs/${currentId}/redrive/`, {
+        method: "POST",
+        headers: { "X-CSRFToken": getCookie("csrftoken") },
+      });
+      $("redrive").disabled = false;
+      // Reopen the socket to get a fresh snapshot (PENDING) and stream the recovery.
+      if (ws) { ws.close(); }
+      stream(currentId);
+    }
+
+    // Which pipeline stages are done / active / failed for a given job snapshot.
+    function pipeline(job) {
+      const s = job.status;
+      const stages = { submitted: "done", queued: "", worker: "", result: "" };
+      if (s === "PENDING") stages.queued = "active";
+      else if (s === "PROCESSING") { stages.queued = "done"; stages.worker = "active"; }
+      else { // terminal
+        stages.queued = "done"; stages.worker = "done";
+        stages.result = (s === "SUCCEEDED") ? "done" : "fail";
+      }
+      return stages;
     }
 
     function render(job) {
@@ -73,15 +189,43 @@
       $("status").className = "badge " + job.status;
       $("attempts").textContent = job.attempts;
       $("progress").style.width = (job.progress || 0) + "%";
+
+      const stages = pipeline(job);
+      document.querySelectorAll("#pipeline .stage").forEach((el) => {
+        el.className = "stage " + (stages[el.dataset.stage] || "");
+      });
+
       const detail = job.error ? { error: job.error } : job.result;
       $("detail").textContent = detail ? JSON.stringify(detail, null, 2) : "";
+
       const report = $("report");
       report.hidden = job.status !== "SUCCEEDED";
       if (!report.hidden) report.href = `/api/v1/jobs/${job.id}/report/`;
+
+      $("redrive").hidden = job.status !== "DEAD_LETTER";
     }
 
+    // --- Live metrics strip (independent of any one job) ---
+    async function pollMetrics() {
+      try {
+        const res = await fetch("/api/v1/metrics/summary");
+        const m = await res.json();
+        for (const [k, v] of Object.entries(m.jobs_by_status || {})) {
+          const el = $("m-" + k);
+          if (el) el.textContent = v;
+        }
+        $("m-outbox").textContent = m.outbox_pending ?? "–";
+        $("m-retry").textContent = m.retry_scheduled ?? "–";
+      } catch (_) { /* transient network blip — next tick retries */ }
+    }
+    pollMetrics();
+    setInterval(pollMetrics, 1500);
+
     $("run-sample").onclick = () => submit({ source: "sample:properties.csv" });
-    $("run-bad").onclick = () => submit({ source: "s3://bucket/data.csv" });
+    $("run-flaky").onclick  = () => submit({ source: "fault:flaky" });
+    $("run-dlq").onclick    = () => submit({ source: `fault:heal-after:${HEAL_AFTER}` });
+    $("run-bad").onclick    = () => submit({ source: "s3://bucket/data.csv" });
+    $("redrive").onclick    = redrive;
   </script>
   {% endverbatim %}
 </body>

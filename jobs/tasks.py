@@ -26,6 +26,7 @@ from django.db import connection, transaction
 from django.db.models import Model, QuerySet
 from django.utils import timezone
 
+from .faults import is_fault_source, load_fault_csv
 from .ingest import IngestError, load_csv_text, parse_rows
 from .models import Job, OutboxEvent, PropertyRecord
 from .realtime import notify_job
@@ -233,7 +234,15 @@ def _retry_delay(attempts: int) -> float:
 
 
 def _import_properties(job: Job) -> dict:
-    records, errors = parse_rows(load_csv_text(job.payload))
+    source = str(job.payload.get("source", ""))
+    # Demo fault sources raise a transient error while "active" (exercising the retry /
+    # dead-letter path) and otherwise resolve to the sample CSV; see jobs/faults.py.
+    text = (
+        load_fault_csv(source, attempts=job.attempts, created_at=job.created_at)
+        if is_fault_source(source)
+        else load_csv_text(job.payload)
+    )
+    records, errors = parse_rows(text)
     _bulk_create_with_progress(job, records)
     return {
         "rows_total": len(records) + len(errors),
