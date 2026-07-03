@@ -30,7 +30,7 @@
 - **Send a job to the dead-letter queue** — retries exhaust into `DEAD_LETTER`; **redrive** it and watch it heal.
 - **Try an unsupported source** — poison input fails fast, no wasted retries.
 
-![A sample CSV import going PENDING → SUCCEEDED live over a WebSocket, then offering the imported records as a CSV report](docs/assets/demo.gif)
+![A flaky import failing, retrying with backoff while the attempt counter climbs, then recovering to SUCCEEDED with a downloadable CSV report — streamed live over a WebSocket](docs/assets/demo.gif)
 
 ## Architecture
 
