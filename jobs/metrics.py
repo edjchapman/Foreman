@@ -35,7 +35,7 @@ from django.db.models import (
     Q,
     Sum,
 )
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.utils import timezone
 from prometheus_client import CONTENT_TYPE_LATEST, CollectorRegistry, generate_latest
 from prometheus_client.core import (
@@ -59,6 +59,59 @@ TERMINAL_STATUSES = (
 LATENCY_BUCKETS_SECONDS = (0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0, 60.0)
 
 
+# --- Queue depth primitives ------------------------------------------------------
+# Plain-number queries shared by the Prometheus collector and the JSON summary
+# endpoint (jobs/metrics/summary), so both read the same source of truth.
+
+
+def status_counts() -> dict[str, int]:
+    """Live job count per status, zero-filled so DEAD_LETTER always reports."""
+    counts = {
+        row["status"]: row["n"] for row in Job.objects.values("status").annotate(n=Count("id"))
+    }
+    return {status: counts.get(status, 0) for status in Job.Status.values}
+
+
+def outbox_pending_count() -> int:
+    """Undispatched outbox events (relay backlog)."""
+    return OutboxEvent.objects.filter(status=OutboxEvent.Status.PENDING).count()
+
+
+def outbox_oldest_age_seconds(now: datetime) -> float:
+    """Age of the oldest undispatched outbox event (dispatch lag), 0 if none."""
+    oldest = OutboxEvent.objects.filter(status=OutboxEvent.Status.PENDING).aggregate(
+        oldest=Min("created_at")
+    )["oldest"]
+    return (now - oldest).total_seconds() if oldest else 0.0
+
+
+def retry_scheduled_count(now: datetime) -> int:
+    """PENDING jobs waiting on backoff (retry queue depth)."""
+    return Job.objects.filter(
+        status=Job.Status.PENDING, available_at__isnull=False, available_at__gt=now
+    ).count()
+
+
+def processing_oldest_age_seconds(now: datetime) -> float:
+    """Age of the oldest in-flight job (stuck-lease / worker-death signal), 0 if none."""
+    oldest = Job.objects.filter(status=Job.Status.PROCESSING).aggregate(oldest=Min("updated_at"))[
+        "oldest"
+    ]
+    return (now - oldest).total_seconds() if oldest else 0.0
+
+
+def summary() -> dict:
+    """A JSON-friendly snapshot of the queue's golden signals for the demo UI."""
+    now = timezone.now()
+    return {
+        "jobs_by_status": status_counts(),
+        "outbox_pending": outbox_pending_count(),
+        "outbox_oldest_pending_age_seconds": round(outbox_oldest_age_seconds(now), 3),
+        "retry_scheduled": retry_scheduled_count(now),
+        "processing_oldest_age_seconds": round(processing_oldest_age_seconds(now), 3),
+    }
+
+
 class ForemanCollector(Collector):
     """Yield job/outbox metrics, querying the database at scrape time."""
 
@@ -77,12 +130,9 @@ class ForemanCollector(Collector):
         gauge = GaugeMetricFamily(
             "foreman_jobs", "Number of jobs currently in each status.", labels=["status"]
         )
-        counts = {
-            row["status"]: row["n"] for row in Job.objects.values("status").annotate(n=Count("id"))
-        }
-        # Zero-fill absent statuses so DLQ depth (status="DEAD_LETTER") always reports.
-        for status in Job.Status.values:
-            gauge.add_metric([status], counts.get(status, 0))
+        # status_counts() is zero-filled so DLQ depth (status="DEAD_LETTER") always reports.
+        for status, count in status_counts().items():
+            gauge.add_metric([status], count)
         return gauge
 
     def _jobs_processed_total(self) -> CounterMetricFamily:
@@ -103,41 +153,31 @@ class ForemanCollector(Collector):
         return counter
 
     def _outbox_pending(self) -> GaugeMetricFamily:
-        pending = OutboxEvent.objects.filter(status=OutboxEvent.Status.PENDING).count()
         return GaugeMetricFamily(
-            "foreman_outbox_pending", "Undispatched outbox events (relay backlog).", value=pending
+            "foreman_outbox_pending",
+            "Undispatched outbox events (relay backlog).",
+            value=outbox_pending_count(),
         )
 
     def _outbox_oldest_age(self, now: datetime) -> GaugeMetricFamily:
-        oldest = OutboxEvent.objects.filter(status=OutboxEvent.Status.PENDING).aggregate(
-            oldest=Min("created_at")
-        )["oldest"]
-        age = (now - oldest).total_seconds() if oldest else 0.0
         return GaugeMetricFamily(
             "foreman_outbox_oldest_pending_age_seconds",
             "Age of the oldest undispatched outbox event (dispatch lag).",
-            value=age,
+            value=outbox_oldest_age_seconds(now),
         )
 
     def _retry_scheduled(self, now: datetime) -> GaugeMetricFamily:
-        waiting = Job.objects.filter(
-            status=Job.Status.PENDING, available_at__isnull=False, available_at__gt=now
-        ).count()
         return GaugeMetricFamily(
             "foreman_jobs_retry_scheduled",
             "PENDING jobs waiting on backoff (retry queue depth).",
-            value=waiting,
+            value=retry_scheduled_count(now),
         )
 
     def _processing_oldest_age(self, now: datetime) -> GaugeMetricFamily:
-        oldest = Job.objects.filter(status=Job.Status.PROCESSING).aggregate(
-            oldest=Min("updated_at")
-        )["oldest"]
-        age = (now - oldest).total_seconds() if oldest else 0.0
         return GaugeMetricFamily(
             "foreman_jobs_processing_oldest_age_seconds",
             "Age of the oldest in-flight job (stuck-lease / worker-death signal).",
-            value=age,
+            value=processing_oldest_age_seconds(now),
         )
 
     def _queue_wait_histogram(self) -> HistogramMetricFamily:
@@ -191,3 +231,8 @@ REGISTRY.register(ForemanCollector())
 def metrics_view(request: HttpRequest) -> HttpResponse:
     """Expose the domain metrics in Prometheus text exposition format."""
     return HttpResponse(generate_latest(REGISTRY), content_type=CONTENT_TYPE_LATEST)
+
+
+def metrics_summary_view(request: HttpRequest) -> JsonResponse:
+    """JSON queue snapshot for the demo UI — the human-readable half of `/metrics`."""
+    return JsonResponse(summary())

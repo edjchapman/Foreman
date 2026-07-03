@@ -14,5 +14,19 @@ def test_demo_page_renders(client):
     assert "/ws/jobs/" in body  # the page streams from the WebSocket endpoint
     assert 'id="run-sample"' in body
     assert 'id="run-bad"' in body
+    # The reliability scenarios + operator action that make the machinery visible.
+    assert 'id="run-flaky"' in body
+    assert 'id="run-dlq"' in body
+    assert 'id="redrive"' in body  # revealed by render() on DEAD_LETTER
+    assert 'id="metrics"' in body  # live queue-metrics strip (polls /metrics/summary)
     assert 'id="report"' in body  # download link, revealed by render() on SUCCEEDED
     assert resp.cookies.get("csrftoken") is not None  # ensure_csrf_cookie fired on GET
+
+
+def test_demo_page_exposes_the_heal_window(client):
+    """The dead-letter scenario's heal window is injected from settings, so the page
+    and the fault source agree on one number."""
+    from django.conf import settings
+
+    resp = client.get("/")
+    assert f'data-heal-after="{settings.DEMO_HEAL_AFTER_SECONDS}"' in resp.content.decode()

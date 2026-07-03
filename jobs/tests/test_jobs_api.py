@@ -51,3 +51,28 @@ def test_list_jobs_paginated(api_client):
     resp = api_client.get("/api/v1/jobs/")
     assert resp.status_code == 200
     assert resp.data["count"] == 3
+
+
+# --- Redrive action (operator recovery) -------------------------------------------
+
+
+def test_redrive_resets_a_dead_letter_job(api_client):
+    job = JobFactory(status=Job.Status.DEAD_LETTER, attempts=3, error="boom")
+
+    resp = api_client.post(f"/api/v1/jobs/{job.id}/redrive/")
+
+    assert resp.status_code == 200
+    assert resp.data["status"] == Job.Status.PENDING
+    job.refresh_from_db()
+    assert job.attempts == 0  # fresh retry budget
+    assert job.available_at is not None  # the recover scan will re-dispatch it
+
+
+def test_redrive_rejects_a_non_dead_letter_job(api_client):
+    job = JobFactory(status=Job.Status.PROCESSING)
+
+    resp = api_client.post(f"/api/v1/jobs/{job.id}/redrive/")
+
+    assert resp.status_code == 409  # real resource, wrong state
+    job.refresh_from_db()
+    assert job.status == Job.Status.PROCESSING  # untouched
