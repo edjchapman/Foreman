@@ -1,4 +1,4 @@
-.PHONY: help up down build logs migrate makemigrations test e2e lint fmt typecheck audit ci preflight shell \
+.PHONY: help up down build logs migrate makemigrations test e2e load lint fmt typecheck audit ci preflight shell \
         worker beat relay deploy configure tf-check \
         check check-links check-anchors stack-check \
         check-commit-msg check-stale-branches sweep-branches lint-md
@@ -38,6 +38,9 @@ test: ## Run the test suite
 e2e: ## Browser tests against the live demo (Playwright; FOREMAN_E2E_URL retargets)
 	uv run --group e2e playwright install chromium
 	uv run --group e2e pytest -c e2e/pytest.ini e2e
+
+load: ## Load test the pipeline (Locust web UI; FOREMAN_LOAD_URL retargets, needs a live stack)
+	uv run --group load locust -f load/locustfile.py --host $${FOREMAN_LOAD_URL:-http://localhost:8000}
 
 lint: ## Lint + format-check (no changes)
 	uv run ruff check .

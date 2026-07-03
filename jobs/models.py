@@ -51,6 +51,14 @@ class Job(models.Model):
     error = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    # Durable transition timestamps for latency metrics. `updated_at` is overwritten
+    # on every save, so it can't reconstruct per-phase durations; these are stamped
+    # once and never rewritten:
+    # - started_at: first claim (PENDING→PROCESSING). queue_wait = started_at - created_at.
+    # - finished_at: terminal transition. processing = finished_at - started_at.
+    # Nullable/additive so the schema stays forward-compatible (no backfill needed).
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["-created_at"]

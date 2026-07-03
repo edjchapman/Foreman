@@ -130,11 +130,15 @@ def _claim_pending(job_id: str) -> Job | None:
         job = _lock_for_claim(Job.objects.filter(pk=job_id)).first()
         if job is None or job.status != Job.Status.PENDING:
             return None
+        now = timezone.now()
         job.status = Job.Status.PROCESSING
         job.attempts += 1
-        job.leased_until = timezone.now() + timedelta(seconds=settings.JOB_LEASE_SECONDS)
+        job.leased_until = now + timedelta(seconds=settings.JOB_LEASE_SECONDS)
         job.lease_token = uuid.uuid4()
         job.available_at = None
+        # Stamp the start of this run; on a retry the latest claim wins, so the
+        # processing histogram measures the final attempt's work (not backoff waits).
+        job.started_at = now
         job.save(
             update_fields=[
                 "status",
@@ -142,6 +146,7 @@ def _claim_pending(job_id: str) -> Job | None:
                 "leased_until",
                 "lease_token",
                 "available_at",
+                "started_at",
                 "updated_at",
             ]
         )
@@ -188,6 +193,8 @@ def _terminal(
         "lease_token": None,
         "available_at": None,
         "error": error,
+        # Terminal transition — stamp once for the processing-latency histogram.
+        "finished_at": timezone.now(),
     }
     if progress is not None:
         fields["progress"] = progress

@@ -177,16 +177,32 @@ demo's off/on switch (usage-billed, ~$8–12/mo).
 ([docs/ci.md](ci.md) · [docs/deploy.md](deploy.md) ·
 [ADR 0005](adr/0005-deployment-platform.md))
 
+## Prove it under load: measured, not asserted
+
+Every claim above is about behaviour under pressure, so the pressure has to be
+real. A [Locust harness](load-testing.md) drives the actual submit → outbox →
+worker pipeline at volume, and the observability layer grew the series needed to
+*read* it: a monotonic `foreman_jobs_processed_total{status}` counter
+(`rate()` → throughput and error ratio) and queue-wait / processing-latency
+**histograms** (`histogram_quantile` → p95). Both stay **DB-derived** — the same
+cross-process reasoning as the gauges: worker, Beat, and web are separate
+containers, so counts and buckets are recovered from Postgres at scrape time (the
+histograms bucket DB-side in one query via SQL `FILTER`), never from
+process-local state. This closes the tradeoff ADR 0003 left open — rate counters
+without multiprocess mode or a Pushgateway. The counter's one honest boundary:
+`redrive` and retention pruning can dent monotonicity, which `rate()` tolerates
+as a reset. ([ADR 0006](adr/0006-load-testing-metrics.md))
+
 ## What I'd build next
 
 In rough order of what the current design already anticipates:
 `LISTEN/NOTIFY` to replace outbox polling (the write path wouldn't change),
-event-rate counters and OpenTelemetry traces, WebSocket metrics and
-per-connection auth, and remote CSV sources (`s3://`, `https://`) behind the
+OpenTelemetry traces spanning API → outbox → worker → realtime, WebSocket metrics
+and per-connection auth, and remote CSV sources (`s3://`, `https://`) behind the
 existing ingest seam.
 
 ---
 
 *Built by [Ed Chapman](https://github.com/edjchapman). The pipeline in one
 sitting: [live demo](https://foreman-demo.up.railway.app) · [ADR index](adr/README.md) ·
-[runbook](runbook.md) · [CI/CD pipeline](ci.md).*
+[runbook](runbook.md) · [CI/CD pipeline](ci.md) · [load testing](load-testing.md).*
