@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.0](https://github.com/edjchapman/Foreman/compare/v0.9.5...v0.10.0) (2026-07-03)
+
+
+### Features
+
+* load testing + event-rate and latency metrics ([#69](https://github.com/edjchapman/Foreman/issues/69)) ([aa0dd86](https://github.com/edjchapman/Foreman/commit/aa0dd869df198fa4bfba7c6ec674780221050e71))
+
 ## [0.9.5](https://github.com/edjchapman/foreman/compare/v0.9.4...v0.9.5) (2026-07-02)
 
 
