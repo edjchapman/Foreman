@@ -23,9 +23,9 @@ region if EU selection is plan-gated.
 |---|---|---|
 | `Postgres` | Railway template (`ghcr.io/railwayapp-templates/postgres-ssl:16`) | Pin the image tag to `16` **before first boot** — switching major version after data exists breaks the data dir. Volume attached by the template. |
 | `Redis` | Railway template | Celery broker + result backend + Channels layer, all via one `REDIS_URL`. **No volume** — all state is ephemeral by design (and the provider can't reliably attach a second volume; see `deploy/terraform/main.tf`). |
-| `web` | `ghcr.io/edjchapman/foreman:<semver>` | Image default CMD (daphne, port 8000). Healthcheck path `/readyz`. Pre-deploy command `uv run --no-dev python manage.py migrate`. Public domain generated (target port 8000). |
-| `worker` | same image | Start command `uv run --no-dev celery -A config worker -l info --concurrency 2` (`--no-dev` matches the image's frozen sync; `--concurrency 2` caps fork-per-visible-CPU RAM cost). |
-| `beat` | same image | Start command `uv run --no-dev celery -A config beat -l info`. Exactly 1 replica, always — two Beats double-schedule. The `celerybeat-schedule` file on ephemeral FS is fine (re-seeds from settings). |
+| `web` | `ghcr.io/edjchapman/foreman:<semver>` | Image default CMD (daphne, port 8000). Healthcheck path `/readyz`. Pre-deploy command `python manage.py migrate`. Public domain generated (target port 8000). |
+| `worker` | same image | Start command `celery -A config worker -l info --concurrency 2` (`--concurrency 2` caps fork-per-visible-CPU RAM cost). The image puts the `--no-dev` venv on `PATH`, so the binary runs directly (no `uv` in the runtime image). |
+| `beat` | same image | Start command `celery -A config beat -l info`. Exactly 1 replica, always — two Beats double-schedule. The `celerybeat-schedule` file on ephemeral FS is fine (re-seeds from settings). |
 
 App services talk to Postgres/Redis over Railway **private networking**
 (`*.railway.internal` — the templates' default `DATABASE_URL`/`REDIS_URL`
@@ -158,12 +158,12 @@ for image-sourced services *are* expressible via the public GraphQL API, so
 (`make configure`) applies them right after `apply` (they survive CD image
 re-pins; the script is idempotent):
 
-- **web**: Pre-Deploy Command `uv run --no-dev python manage.py migrate`;
+- **web**: Pre-Deploy Command `python manage.py migrate`;
   Healthcheck Path `/readyz` (default 300 s timeout).
 - **worker**: Custom Start Command
-  `uv run --no-dev celery -A config worker -l info --concurrency 2`.
+  `celery -A config worker -l info --concurrency 2`.
 - **beat**: Custom Start Command
-  `uv run --no-dev celery -A config beat -l info`.
+  `celery -A config beat -l info`.
 
 Finally create the **project token** (Project Settings → Tokens, `production`)
 → GitHub secret `RAILWAY_TOKEN`, and set the IDs from
@@ -200,7 +200,7 @@ the CSV report, and the poison-job `FAILED` path.
    `foreman_outbox_pending` returns to 0 (beat relay alive).
 5. Poison job (inline `payload.csv` garbage) → `FAILED`, no retries.
 6. Admin: `railway ssh --service web` →
-   `uv run --no-dev python manage.py createsuperuser` → log in at `/admin/`
+   `python manage.py createsuperuser` → log in at `/admin/`
    (exercises CSRF trusted origins + secure cookies).
 
 ## Rollback

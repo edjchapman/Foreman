@@ -36,6 +36,12 @@ standups
 .editorconfig
 .markdownlint-cli2.jsonc
 
+# Tests + host-only test suites (run via `make` on the host, never in the image)
+jobs/tests
+e2e
+load
+conftest.py
+
 # Claude / local tooling
 .claude
 .mcp.json

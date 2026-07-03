@@ -1,4 +1,4 @@
-.PHONY: help up down build logs migrate makemigrations test e2e load lint fmt typecheck audit ci preflight shell \
+.PHONY: help up down clean build logs migrate makemigrations test e2e load lint fmt typecheck audit ci preflight shell \
         worker beat relay deploy configure tf-check \
         check check-links check-anchors stack-check \
         check-commit-msg check-stale-branches sweep-branches lint-md
@@ -15,7 +15,10 @@ help: ## Print available targets
 up: ## Start the local stack (Django + Postgres) with live reload
 	docker compose up --build
 
-down: ## Stop the stack and remove volumes
+down: ## Stop the stack (keeps the Postgres volume — data persists across up/down)
+	docker compose down
+
+clean: ## Stop the stack and wipe volumes (destroys local Postgres data)
 	docker compose down -v
 
 build: ## Build the web image

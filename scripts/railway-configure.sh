@@ -3,10 +3,13 @@
 # the Terraform provider (v0.6.x) cannot express, set via the same
 # serviceInstanceUpdate mutation the CD script uses for image pinning:
 #
-#   web    → Pre-Deploy Command  (uv run --no-dev python manage.py migrate)
+#   web    → Pre-Deploy Command  (python manage.py migrate)
 #            Healthcheck Path    (/readyz)
 #   worker → Custom Start Command (celery worker)
 #   beat   → Custom Start Command (celery beat)
+#
+# The image puts the venv on PATH (see Dockerfile), so these invoke the binaries
+# directly — the runtime image no longer ships `uv`.
 #
 # Settings live on the service instance and take effect from the NEXT
 # deployment (the release workflow's `make deploy`, or a manual deploy) — this
@@ -55,16 +58,16 @@ configure() { # configure <service-id> <ServiceInstanceUpdateInput json> <label>
 
 # preDeployCommand is [String!] in the schema; start/healthcheck are plain strings.
 configure "$RAILWAY_WEB_SERVICE_ID" '{
-  "preDeployCommand": ["uv run --no-dev python manage.py migrate"],
+  "preDeployCommand": ["python manage.py migrate"],
   "healthcheckPath": "/readyz"
 }' "web (pre-deploy migrate + /readyz healthcheck)"
 
 configure "$RAILWAY_WORKER_SERVICE_ID" '{
-  "startCommand": "uv run --no-dev celery -A config worker -l info --concurrency 2"
+  "startCommand": "celery -A config worker -l info --concurrency 2"
 }' "worker (celery start command)"
 
 configure "$RAILWAY_BEAT_SERVICE_ID" '{
-  "startCommand": "uv run --no-dev celery -A config beat -l info"
+  "startCommand": "celery -A config beat -l info"
 }' "beat (celery start command)"
 
 echo "Deploy settings applied — they take effect from the next deployment of each service."
