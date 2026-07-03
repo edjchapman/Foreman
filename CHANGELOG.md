@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.1](https://github.com/edjchapman/Foreman/compare/v0.10.0...v0.10.1) (2026-07-03)
+
+
+### Documentation
+
+* capture load-test baseline numbers ([#71](https://github.com/edjchapman/Foreman/issues/71)) ([290ae89](https://github.com/edjchapman/Foreman/commit/290ae89922eaa4aebf6e792778d1075aa025eadc))
+
 ## [0.10.0](https://github.com/edjchapman/Foreman/compare/v0.9.5...v0.10.0) (2026-07-03)
 
 
