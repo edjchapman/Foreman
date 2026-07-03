@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.2](https://github.com/edjchapman/Foreman/compare/v0.10.1...v0.10.2) (2026-07-03)
+
+
+### Documentation
+
+* surface load-test results prominently in the README ([#73](https://github.com/edjchapman/Foreman/issues/73)) ([8a6f9a5](https://github.com/edjchapman/Foreman/commit/8a6f9a5b87219a09a0048e6a564802eb81504caa))
+
 ## [0.10.1](https://github.com/edjchapman/Foreman/compare/v0.10.0...v0.10.1) (2026-07-03)
 
 
