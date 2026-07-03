@@ -22,6 +22,9 @@ audit = [
 e2e = [
     "pytest-playwright>=0.7",
 ]
+load = [
+    "locust>=2.30",
+]
 dev = [
     "pytest>=8.3",
     "pytest-django>=4.9",

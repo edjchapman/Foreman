@@ -11,3 +11,4 @@ older ones explicitly rather than by edit.
 | [0003](0003-observability.md) | Observability: structured logging, metrics, health/readiness | Accepted |
 | [0004](0004-realtime-websockets.md) | Realtime job status over WebSockets (Django Channels) | Accepted |
 | [0005](0005-deployment-platform.md) | Deployment platform: Railway, one image, semver-pinned CD | Accepted |
+| [0006](0006-load-testing-metrics.md) | Load testing & event-rate / latency metrics | Accepted |
