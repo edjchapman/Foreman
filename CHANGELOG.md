@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.11.0](https://github.com/edjchapman/Foreman/compare/v0.10.3...v0.11.0) (2026-07-03)
+
+
+### Features
+
+* **demo:** show retries, dead-letter and redrive live ([#77](https://github.com/edjchapman/Foreman/issues/77)) ([9869b11](https://github.com/edjchapman/Foreman/commit/9869b11c733524e6fd3f33ab4c57130d3a8bd5ee))
+* **dispatch:** LISTEN/NOTIFY push dispatch with Beat fallback ([#81](https://github.com/edjchapman/Foreman/issues/81)) ([a3353b6](https://github.com/edjchapman/Foreman/commit/a3353b60075553bbbe5cf8ba08df0235be41981b))
+
+
+### Documentation
+
+* add architecture diagrams and demo screenshots ([#78](https://github.com/edjchapman/Foreman/issues/78)) ([a59e15b](https://github.com/edjchapman/Foreman/commit/a59e15bea5a908f4886d5d2db339fc462eb38e2c))
+
 ## [0.10.3](https://github.com/edjchapman/Foreman/compare/v0.10.2...v0.10.3) (2026-07-03)
 
 
