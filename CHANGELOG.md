@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.4](https://github.com/edjchapman/Foreman/compare/v0.11.3...v0.11.4) (2026-07-06)
+
+
+### Documentation
+
+* lead the README with a successful run and document the agentic workflow ([#93](https://github.com/edjchapman/Foreman/issues/93)) ([e5f45c3](https://github.com/edjchapman/Foreman/commit/e5f45c37960a79a7c8c2154802d5d8d1b78839eb))
+
 ## [0.11.3](https://github.com/edjchapman/Foreman/compare/v0.11.2...v0.11.3) (2026-07-06)
 
 
