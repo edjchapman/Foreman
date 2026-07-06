@@ -18,6 +18,7 @@
 - [Quickstart](#quickstart)
 - [API](#api)
 - [Engineering practices](#engineering-practices)
+- [Built with agentic development](#built-with-agentic-development)
 - [Development](#development)
 - [License](#license)
 
@@ -30,7 +31,7 @@
 - **Send a job to the dead-letter queue** — retries exhaust into `DEAD_LETTER`; **redrive** it and watch it heal.
 - **Try an unsupported source** — poison input fails fast, no wasted retries.
 
-![A flaky import failing, retrying with backoff while the attempt counter climbs, then recovering to SUCCEEDED with a downloadable CSV report — streamed live over a WebSocket](docs/assets/demo.gif)
+![The Foreman demo: a property-CSV import reaching SUCCEEDED on the first attempt — the four pipeline stages all green, an imported-row summary (rows_imported: 5), and a downloadable CSV report — with the live queue metrics ticking above, all streamed over a WebSocket](docs/assets/demo-success.png)
 
 ## Architecture
 
@@ -69,7 +70,11 @@ The **outbox** decouples submission from dispatch, the **relay** is a dumb publi
 | Worker crash | **Lease + reaper recovery** | An expired lease is reclaimed; a fencing token discards a resumed zombie's stale write. |
 | Concurrency | **Non-blocking claims** | `SELECT … FOR UPDATE SKIP LOCKED` (PostgreSQL). |
 
-Failure modes and the crash-window analysis are in [ADR 0002](docs/adr/0002-retries-dlq-lease.md); the [demo page](https://foreman-demo.up.railway.app) drives these states on purpose:
+Failure modes and the crash-window analysis are in [ADR 0002](docs/adr/0002-retries-dlq-lease.md); the [demo page](https://foreman-demo.up.railway.app) drives these states on purpose. A flaky import failing and **retrying with backoff** — the attempt counter climbing — then **recovering to `SUCCEEDED`** on its own, live over the WebSocket:
+
+![A flaky import failing, retrying with backoff while the attempt counter climbs, then recovering to SUCCEEDED with a downloadable CSV report — streamed live over a WebSocket](docs/assets/demo.gif)
+
+When retries exhaust instead of recovering, the job lands in `DEAD_LETTER` with a **Redrive** action for the operator:
 
 ![The Foreman demo showing a job in the DEAD_LETTER state with a Redrive button, above a live metrics strip reporting the dead-letter count](docs/assets/demo-dead-letter.png)
 
@@ -141,6 +146,16 @@ The repo is operated like a production service:
 - **Operability**: structured JSON logs, split liveness/readiness probes, an operator [runbook](docs/runbook.md), and decisions captured as [ADRs](docs/adr/README.md).
 
 Built in five milestones (walking skeleton → outbox → reliability → realtime + observability → ship), all delivered — the narrative, and what I'd build next, are in the [case study](docs/case-study.md).
+
+## Built with agentic development
+
+foreman was built **human-directed, agent-assisted** with [Claude Code](https://www.anthropic.com/claude-code) — the interesting part isn't that an agent wrote code, it's that the *workflow around the agent* is engineered and committed:
+
+- **Provable authorship** — Claude Code co-authorship is recorded in git history (`Co-authored-by: Claude …` commit trailers), not just asserted here.
+- **Reproducible agent runtime** — the `.claude/` bootstrap is committed (`settings.json` + a `SessionStart` hook, `.claude/hooks/session-start.sh`), so a from-scratch Claude-Code-on-the-web session provisions `uv`, syncs dependencies, and points `DATABASE_URL` at in-memory SQLite to run the suite with no Postgres. The rationale is in [CLAUDE.md](CLAUDE.md).
+- **Single-source context** — [CLAUDE.md](CLAUDE.md) is the canonical agent brief (stack, every `make` target, conventions); [AGENTS.md](AGENTS.md) is a thin pointer to it so other agents don't drift onto a stale copy.
+- **Guardrails** — a least-privilege tool allow/deny list (`.claude/settings.local.json`) and a Postgres MCP server for schema-aware work.
+- **Kept reviewable** — agent and human changes clear the *same* bar: every decision is captured as an [ADR](docs/adr/README.md), every milestone lands as its own reviewed PR, Conventional-Commit titles give a clean squash-merge audit trail, and `make preflight` gates all of it.
 
 ## Development
 
