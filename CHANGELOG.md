@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.3](https://github.com/edjchapman/Foreman/compare/v0.11.2...v0.11.3) (2026-07-06)
+
+
+### Build System
+
+* **deps:** bump python from 3.12-slim-bookworm to 3.14-slim-bookworm ([#90](https://github.com/edjchapman/Foreman/issues/90)) ([15dd0bb](https://github.com/edjchapman/Foreman/commit/15dd0bb8fd1f6c8908631566c15162f299e21ef2))
+
 ## [0.11.2](https://github.com/edjchapman/Foreman/compare/v0.11.1...v0.11.2) (2026-07-03)
 
 
