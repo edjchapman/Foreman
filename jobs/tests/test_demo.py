@@ -20,6 +20,12 @@ def test_demo_page_renders(client):
     assert 'id="redrive"' in body  # revealed by render() on DEAD_LETTER
     assert 'id="metrics"' in body  # live queue-metrics strip (polls /metrics/summary)
     assert 'id="report"' in body  # download link, revealed by render() on SUCCEEDED
+    # Live queue board: wired via a vendored Alpine component (the ws/queue/ URL itself lives
+    # in queue-board.js, so it's asserted by the consumer + e2e suites, not here).
+    assert 'id="queue-board"' in body
+    assert "x-data" in body
+    assert "queue-board.js" in body  # substring, not the hashed name — storage-agnostic
+    assert "alpine" in body
     assert resp.cookies.get("csrftoken") is not None  # ensure_csrf_cookie fired on GET
 
 

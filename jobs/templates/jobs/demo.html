@@ -1,4 +1,4 @@
-<!doctype html>
+{% load static %}<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -73,6 +73,21 @@
     .stage.active { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); font-weight: 600; }
     .stage.fail { color: var(--fail); background: color-mix(in srgb, var(--fail) 12%, transparent); }
 
+    /* Live queue board: three lanes of job cards that move as status changes */
+    .lanes { display: grid; gap: 0.6rem; grid-template-columns: repeat(3, 1fr); align-items: start; }
+    .lane { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 0.6rem; min-height: 4rem; }
+    .lane h3 { margin: 0 0 0.5rem; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+    .lane h3 .c { color: var(--text); font-variant-numeric: tabular-nums; }
+    .queue-card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 0.5rem 0.6rem; margin-bottom: 0.5rem; }
+    .queue-card:last-child { margin-bottom: 0; }
+    .queue-card .top { display: flex; align-items: center; gap: 0.4rem; justify-content: space-between; }
+    .queue-card .cid { font-family: ui-monospace, monospace; font-size: 0.75rem; color: var(--muted); }
+    .queue-card .meta { font-size: 0.72rem; color: var(--muted); margin-top: 0.3rem; }
+    .queue-card .track { margin: 0.4rem 0 0; height: 6px; }
+    .queue-card.flash { animation: flash 1s ease; }
+    @keyframes flash { from { box-shadow: 0 0 0 2px var(--accent); } to { box-shadow: 0 0 0 2px transparent; } }
+    .lane .empty { color: var(--muted); font-size: 0.78rem; }
+
     pre { background: var(--surface); border: 1px solid var(--line); padding: 0.75rem; border-radius: 8px; overflow: auto; font-size: 0.85em; margin: 0.5rem 0 0; }
     a#report { display: inline-block; margin-top: 0.75rem; }
     #redrive { background: var(--warn-surface); color: var(--warn);
@@ -97,6 +112,53 @@
     <div class="metric"><div class="n" id="m-outbox">–</div><div class="k">Outbox backlog</div></div>
     <div class="metric"><div class="n" id="m-retry">–</div><div class="k">Retry queue</div></div>
   </div>
+
+  <h2>Live queue board</h2>
+  <p class="lede">Every job's transitions, pushed over <code>ws/queue/</code> — the whole queue at once.
+    Run a scenario below and watch cards move across the lanes in real time.</p>
+  <section id="queue-board" class="lanes" x-data="queueBoard()">
+    <div class="lane" data-lane="queued">
+      <h3>Queued <span class="c" x-text="queued.length">0</span></h3>
+      <template x-for="job in queued" :key="job.id">
+        <article class="queue-card" :data-job-id="job.id" :class="{ flash: job.id === flashId }">
+          <div class="top">
+            <span class="badge" :class="job.status" x-text="job.status"></span>
+            <span class="cid" x-text="job.id.slice(0, 8)"></span>
+          </div>
+          <div class="meta"><span x-text="job.job_type"></span> · attempt <span x-text="job.attempts"></span></div>
+          <div class="track"><div class="fill" :style="'width:' + (job.progress || 0) + '%'"></div></div>
+        </article>
+      </template>
+      <p class="empty" x-show="!queued.length">idle</p>
+    </div>
+    <div class="lane" data-lane="processing">
+      <h3>Processing <span class="c" x-text="processing.length">0</span></h3>
+      <template x-for="job in processing" :key="job.id">
+        <article class="queue-card" :data-job-id="job.id" :class="{ flash: job.id === flashId }">
+          <div class="top">
+            <span class="badge" :class="job.status" x-text="job.status"></span>
+            <span class="cid" x-text="job.id.slice(0, 8)"></span>
+          </div>
+          <div class="meta"><span x-text="job.job_type"></span> · attempt <span x-text="job.attempts"></span></div>
+          <div class="track"><div class="fill" :style="'width:' + (job.progress || 0) + '%'"></div></div>
+        </article>
+      </template>
+      <p class="empty" x-show="!processing.length">idle</p>
+    </div>
+    <div class="lane" data-lane="done">
+      <h3>Done <span class="c" x-text="done.length">0</span></h3>
+      <template x-for="job in done" :key="job.id">
+        <article class="queue-card" :data-job-id="job.id" :class="{ flash: job.id === flashId }">
+          <div class="top">
+            <span class="badge" :class="job.status" x-text="job.status"></span>
+            <span class="cid" x-text="job.id.slice(0, 8)"></span>
+          </div>
+          <div class="meta"><span x-text="job.job_type"></span> · attempt <span x-text="job.attempts"></span></div>
+        </article>
+      </template>
+      <p class="empty" x-show="!done.length">idle</p>
+    </div>
+  </section>
 
   <h2>Run a scenario</h2>
   <div class="scenarios">
@@ -249,5 +311,10 @@
     $("redrive").onclick    = redrive;
   </script>
   {% endverbatim %}
+
+  <!-- Queue board: register the Alpine component BEFORE Alpine boots. With `defer`, scripts
+       run in document order, so queue-board.js (its alpine:init listener) must come first. -->
+  <script defer src="{% static 'jobs/queue-board.js' %}"></script>
+  <script defer src="{% static 'jobs/vendor/alpine.min.js' %}"></script>
 </body>
 </html>

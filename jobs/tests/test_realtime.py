@@ -5,7 +5,7 @@ import logging
 import pytest
 
 from jobs.models import Job
-from jobs.realtime import job_group, notify_job
+from jobs.realtime import QUEUE_GROUP, job_group, notify_job
 from jobs.tests.factories import JobFactory
 
 pytestmark = pytest.mark.django_db
@@ -39,13 +39,17 @@ def test_notify_job_addresses_group_with_serialized_state(monkeypatch):
 
     notify_job(job)
 
-    assert len(layer.sent) == 1
-    group, message = layer.sent[0]
-    assert group == f"job.{job.id}"
-    assert message["type"] == "job.update"
-    assert message["data"]["id"] == str(job.id)
-    assert message["data"]["status"] == "PENDING"
-    assert "attempts" in message["data"]  # the field added for the live view
+    # Fans out twice from one serialisation: the job's own group + the queue firehose.
+    assert len(layer.sent) == 2
+    sent = dict(layer.sent)
+    job_message = sent[f"job.{job.id}"]
+    queue_message = sent[QUEUE_GROUP]
+    assert job_message["type"] == "job.update"
+    assert queue_message["type"] == "queue.job"
+    for message in (job_message, queue_message):
+        assert message["data"]["id"] == str(job.id)
+        assert message["data"]["status"] == "PENDING"
+        assert "attempts" in message["data"]  # the field added for the live view
 
 
 def test_notify_job_broadcasts_committed_not_stale_state(monkeypatch):

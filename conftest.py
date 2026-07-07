@@ -33,6 +33,21 @@ def _in_memory_channel_layer(settings: SettingsWrapper) -> Iterator[None]:
     channel_layers.backends.clear()
 
 
+@pytest.fixture(autouse=True)
+def _plain_static_storage(settings: SettingsWrapper) -> None:
+    """Render `{% static %}` without a manifest so demo-page tests don't need collectstatic.
+
+    Prod (not DEBUG) uses `CompressedManifestStaticFilesStorage` with `manifest_strict=True`;
+    with no `staticfiles.json` (the test env never runs collectstatic) `{% static %}` would
+    raise `Missing staticfiles manifest entry`. Point the suite at the plain storage — prod
+    and the deployed e2e target are unaffected.
+    """
+    settings.STORAGES = {
+        **settings.STORAGES,
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    }
+
+
 @pytest.fixture
 def api_client() -> APIClient:
     return APIClient()
