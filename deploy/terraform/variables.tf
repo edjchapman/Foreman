@@ -9,6 +9,26 @@ variable "app_version" {
   }
 }
 
+variable "otel_exporter_otlp_endpoint" {
+  description = "OTLP/gRPC endpoint for a trace backend (e.g. Grafana Cloud Tempo / Honeycomb). Empty leaves tracing OFF in prod. Supply via TF_VAR_otel_exporter_otlp_endpoint (a gh secret in CD)."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "otel_exporter_otlp_headers" {
+  description = "OTLP auth headers for the vendor, e.g. \"authorization=Bearer <token>\". Supply via TF_VAR_otel_exporter_otlp_headers (a gh secret in CD)."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "otel_sampler_ratio" {
+  description = "Head-sampling ratio for root spans (parent-based). 1.0 suits the low-traffic demo."
+  type        = string
+  default     = "1.0"
+}
+
 variable "web_subdomain" {
   description = "Subdomain for the public *.up.railway.app domain on the web service."
   type        = string

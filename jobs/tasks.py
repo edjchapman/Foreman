@@ -26,6 +26,8 @@ from django.db import connection, transaction
 from django.db.models import Model, QuerySet
 from django.utils import timezone
 
+from config.otel import get_tracer, span_from_carrier
+
 from .faults import is_fault_source, load_fault_csv
 from .ingest import IngestError, load_csv_text, parse_rows
 from .models import Job, OutboxEvent, PropertyRecord
@@ -72,7 +74,12 @@ def dispatch_outbox() -> int:
             OutboxEvent.objects.filter(status=OutboxEvent.Status.PENDING).order_by("id")
         )
         for event in pending[:OUTBOX_BATCH_SIZE]:
-            process_job.delay(event.payload["job_id"])
+            # Re-hydrate this event's own trace context (a batch mixes many requests, so
+            # ambient context would mislink). Starting the span current means Celery's
+            # instrumentation injects it into the process_job message — the worker span
+            # then links back to the original API request. See ADR 0008.
+            with span_from_carrier("outbox.dispatch", event.payload.get("trace")):
+                process_job.delay(event.payload["job_id"])
             event.status = OutboxEvent.Status.DISPATCHED
             event.dispatched_at = timezone.now()
             event.save(update_fields=["status", "dispatched_at"])
@@ -95,7 +102,8 @@ def process_job(job_id: str) -> str:
         return "skipped"
 
     try:
-        result = _import_properties(job)
+        with get_tracer().start_as_current_span("ingest"):
+            result = _import_properties(job)
     except IngestError as exc:
         _terminal(job, Job.Status.FAILED, error=str(exc))
         _log_job("job.failed", job, error_class=type(exc).__name__, error=str(exc))

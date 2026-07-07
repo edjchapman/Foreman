@@ -35,6 +35,12 @@ class Command(BaseCommand):
         if db.vendor != "postgresql":
             raise CommandError("outbox_listener requires PostgreSQL (LISTEN/NOTIFY).")
 
+        # This process calls dispatch_outbox directly (not via a Celery worker), so it must
+        # instrument itself for the outbox.dispatch spans to be created and exported.
+        from config.otel import configure_tracing
+
+        configure_tracing("foreman-listener")
+
         self._stop = False
         signal.signal(signal.SIGINT, self._request_stop)
         signal.signal(signal.SIGTERM, self._request_stop)

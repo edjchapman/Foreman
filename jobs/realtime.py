@@ -15,6 +15,8 @@ import logging
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 
+from config.otel import get_tracer, inject_trace
+
 from .models import Job
 from .serializers import JobSerializer
 
@@ -47,8 +49,12 @@ def notify_job(job: Job) -> None:
         return
     data = dict(JobSerializer(fresh).data)  # serialise once, address twice
     try:
-        send = async_to_sync(layer.group_send)
-        send(job_group(str(fresh.pk)), {"type": "job.update", "data": data})
-        send(QUEUE_GROUP, {"type": "queue.job", "data": data})
+        with get_tracer().start_as_current_span("notify_job"):
+            # Carry this span's context in the message so the consumer's ws.send links back
+            # to the worker that produced the update — completing the trace to the client.
+            carrier = inject_trace()
+            send = async_to_sync(layer.group_send)
+            send(job_group(str(fresh.pk)), {"type": "job.update", "data": data, "trace": carrier})
+            send(QUEUE_GROUP, {"type": "queue.job", "data": data, "trace": carrier})
     except Exception:  # noqa: BLE001 — realtime is best-effort; never fail a job on broadcast
         logger.warning("realtime.notify_failed", extra={"job_id": fresh.pk})

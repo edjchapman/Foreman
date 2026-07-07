@@ -72,5 +72,6 @@ no dependency is added (Redis is only a transitive dep, via `celery[redis]`).
   (`job_retry_due_idx`, `outbox_pending_idx`, `Job.status`) — negligible at 15–60s scrape
   intervals.
 - **One new runtime dependency** (`prometheus-client`); logging and readiness add none.
-- **Future work:** event-rate counters (multiprocess / Pushgateway), OpenTelemetry traces,
-  and Channels/WebSocket metrics land with the M4 realtime half.
+- **Future work:** event-rate counters (multiprocess / Pushgateway) and Channels/WebSocket
+  metrics. OpenTelemetry traces — with `trace_id`/`span_id` now promoted onto these log
+  lines — shipped in [ADR 0008](0008-opentelemetry-tracing.md).

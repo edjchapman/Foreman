@@ -24,7 +24,10 @@ def test_submit_job_writes_job_and_outbox_atomically():
     assert event.job_id == job.id
     assert event.status == OutboxEvent.Status.PENDING
     assert event.event_type == "job.created"
-    assert event.payload == {"job_id": str(job.id)}
+    assert event.payload["job_id"] == str(job.id)
+    # The payload also carries a W3C trace carrier (empty when tracing is off) that the
+    # relay re-hydrates to bridge the outbox — see jobs/services.submit_job and ADR 0008.
+    assert "trace" in event.payload
     assert event.dispatched_at is None
 
 

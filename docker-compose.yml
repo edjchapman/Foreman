@@ -6,6 +6,11 @@ x-app-env: &app-env
   DJANGO_DEBUG: "true"
   DJANGO_SECRET_KEY: dev-insecure
   DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,0.0.0.0
+  # Distributed tracing on for local dev — each process exports to the Jaeger service
+  # below (view traces at http://localhost:16686). http:// scheme selects the insecure
+  # gRPC channel. Prod sets these per-service via Terraform. See ADR 0008.
+  OTEL_ENABLED: "true"
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
 
 services:
   db:
@@ -33,6 +38,16 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  # All-in-one trace backend for local dev: receives OTLP and serves the UI. OTLP is the
+  # only wire contract, so prod can swap this for any vendor by changing the endpoint.
+  jaeger:
+    image: jaegertracing/all-in-one:1.60
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "4317:4317"     # OTLP gRPC ingest
 
   # One-shot: apply migrations, then exit. web/worker/beat gate on it completing so no
   # process ever boots against an unmigrated schema (the worker used to only wait on
@@ -89,6 +104,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      jaeger:
+        condition: service_started
     volumes:
       - ./:/app
       - /app/.venv  # anonymous volume: keep the image's venv, not a shadowing host .venv
@@ -107,6 +124,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      jaeger:
+        condition: service_started
     volumes:
       - ./:/app
       - /app/.venv  # anonymous volume: keep the image's venv, not a shadowing host .venv
@@ -128,6 +147,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      jaeger:
+        condition: service_started
     volumes:
       - ./:/app
       - /app/.venv  # anonymous volume: keep the image's venv, not a shadowing host .venv

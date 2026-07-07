@@ -14,6 +14,8 @@ from typing import Any
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 
+from config.otel import span_from_carrier
+
 from .models import Job
 from .realtime import QUEUE_GROUP, job_group
 from .serializers import JobSerializer
@@ -42,7 +44,8 @@ class JobStatusConsumer(AsyncJsonWebsocketConsumer):  # type: ignore[misc]  # ch
 
     async def job_update(self, event: dict[str, Any]) -> None:
         """Handler for ``type: job.update`` group messages — forward the payload."""
-        await self.send_json(event["data"])
+        with span_from_carrier("ws.send", event.get("trace")):
+            await self.send_json(event["data"])
 
     async def receive_json(self, content: Any, **kwargs: Any) -> None:
         """Inbound is ignored — this is a server -> client stream."""
@@ -73,7 +76,8 @@ class QueueConsumer(AsyncJsonWebsocketConsumer):  # type: ignore[misc]  # channe
 
     async def queue_job(self, event: dict[str, Any]) -> None:
         """Handler for ``type: queue.job`` group messages — forward one job's new state."""
-        await self.send_json({"type": "queue.job", "job": event["data"]})
+        with span_from_carrier("ws.send", event.get("trace")):
+            await self.send_json({"type": "queue.job", "job": event["data"]})
 
     async def receive_json(self, content: Any, **kwargs: Any) -> None:
         """Inbound is ignored — this is a server -> client stream."""

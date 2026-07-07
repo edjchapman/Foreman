@@ -4,7 +4,7 @@ Event-driven job-processing platform (portfolio project). Flow: property-data im
 
 ## Stack
 
-Python 3.12, Django 6 + DRF, PostgreSQL 16, Redis + Celery, Django Channels + WebSockets, Docker Compose (daphne/ASGI), structured JSON logging + `prometheus-client` metrics, pytest + pytest-django + pytest-asyncio + factory_boy + pytest-cov, ruff, mypy (+ django/DRF stubs), pip-audit, GitHub Actions.
+Python 3.12, Django 6 + DRF, PostgreSQL 16, Redis + Celery, Django Channels + WebSockets, Docker Compose (daphne/ASGI), structured JSON logging + `prometheus-client` metrics + OpenTelemetry distributed tracing (env-gated; ADR 0008), pytest + pytest-django + pytest-asyncio + factory_boy + pytest-cov, ruff, mypy (+ django/DRF stubs), pip-audit, GitHub Actions.
 
 ## Commands
 
@@ -22,7 +22,7 @@ Python 3.12, Django 6 + DRF, PostgreSQL 16, Redis + Celery, Django Channels + We
 
 ## Layout
 
-- `config/` — Django project. Settings are env-driven; the DB comes from `DATABASE_URL` via `dj-database-url` (Postgres by default). Structured JSON logging via `config/logformat.py` (`DJANGO_LOG_FORMAT=console` for human-readable dev logs); see ADR 0003.
+- `config/` — Django project. Settings are env-driven; the DB comes from `DATABASE_URL` via `dj-database-url` (Postgres by default). Structured JSON logging via `config/logformat.py` (`DJANGO_LOG_FORMAT=console` for human-readable dev logs); see ADR 0003. `config/otel.py` is the env-gated (`OTEL_ENABLED`, default off) OpenTelemetry seam — auto-instruments Django/Celery/psycopg and exposes the `inject_trace`/`span_from_carrier` helpers that bridge trace context across the transactional outbox; per-process `service.name` set at each entrypoint (asgi/celery signals/listener); see ADR 0008.
 - `config/celery.py` — Celery app; `config/__init__.py` exposes `celery_app` for autodiscovery. Celery/Redis settings are env-driven (`REDIS_URL`, `CELERY_*`); Beat schedules the outbox relay.
 - `jobs/` — the core app. `Job` model: UUID pk; states `PENDING → PROCESSING → SUCCEEDED|FAILED|DEAD_LETTER`; outbox-ready fields `idempotency_key` (unique-or-null) and `attempts`. `OutboxEvent` (transactional outbox) and `PropertyRecord` (imported rows). DRF `JobViewSet` (create/retrieve/list + a `report` action streaming the imported records as CSV); `HealthView` (liveness `/healthz`), `ReadinessView` (`/readyz` — DB + broker), and `metrics.py` (`/metrics` — DB-derived Prometheus gauges, terminal-outcome counters, and latency histograms; ADR 0006). Realtime: `consumers.py`/`routing.py` stream live status over WebSockets — a per-job stream (`/ws/jobs/<id>/`) and a global queue firehose (`/ws/queue/`, `QueueConsumer`) that the demo's live board subscribes to; `realtime.py`'s `notify_job` is the sync→async broadcast boundary (fans out to both the job's group and `QUEUE_GROUP`), and `config/asgi.py` is a Channels `ProtocolTypeRouter` (ADR 0004). A minimal live-progress demo page (inline vanilla JS + a vendored Alpine.js queue board in `jobs/static/jobs/`, no build step) is served at `/` by `DemoView` (`jobs/templates/jobs/demo.html`).
   - `services.py` — `submit_job` writes `Job` + `OutboxEvent` atomically.

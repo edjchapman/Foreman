@@ -66,6 +66,25 @@ def test_json_formatter_includes_exception_text():
     assert "RuntimeError: boom" in payload["error"]
 
 
+def test_json_formatter_promotes_trace_ids_when_span_active():
+    """With a recording span active, the line carries matching W3C trace/span ids (ADR 0008)."""
+    from opentelemetry.sdk.trace import TracerProvider
+
+    tracer = TracerProvider().get_tracer("test")
+    with tracer.start_as_current_span("unit") as span:
+        payload = json.loads(JsonFormatter().format(_record("job.claimed")))
+        ctx = span.get_span_context()
+    assert payload["trace_id"] == format(ctx.trace_id, "032x")
+    assert payload["span_id"] == format(ctx.span_id, "016x")
+
+
+def test_json_formatter_omits_trace_ids_without_span():
+    """No active span → no trace keys (zero cost when tracing is off)."""
+    payload = json.loads(JsonFormatter().format(_record("job.succeeded")))
+    assert "trace_id" not in payload
+    assert "span_id" not in payload
+
+
 # --- The task event stream --------------------------------------------------------
 
 
