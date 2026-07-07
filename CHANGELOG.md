@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/edjchapman/Foreman/compare/v0.11.4...v0.12.0) (2026-07-07)
+
+
+### Features
+
+* **demo:** add a live queue board to the demo page ([#97](https://github.com/edjchapman/Foreman/issues/97)) ([b4932f8](https://github.com/edjchapman/Foreman/commit/b4932f845d2783b7a7430c7387335d1a0822b1fd))
+
 ## [0.11.4](https://github.com/edjchapman/Foreman/compare/v0.11.3...v0.11.4) (2026-07-06)
 
 
