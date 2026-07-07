@@ -17,12 +17,24 @@ locals {
   database_url  = "postgresql://${local.postgres_user}:${random_password.postgres.result}@postgres.railway.internal:5432/${local.postgres_db}"
   redis_url     = "redis://default:${random_password.redis.result}@redis.railway.internal:6379/0"
 
-  app_env = [
+  # Tracing turns on only when a vendor OTLP endpoint is supplied — otherwise these vars
+  # are absent and settings default OTEL_ENABLED to false (no cost, no dependency). Each
+  # process picks its own service.name in code (config.otel), so no per-service var here.
+  # OTEL_SERVICE_VERSION ties every span to the deployed image tag. See ADR 0008.
+  otel_env = var.otel_exporter_otlp_endpoint != "" ? [
+    { name = "OTEL_ENABLED", value = "true" },
+    { name = "OTEL_EXPORTER_OTLP_ENDPOINT", value = var.otel_exporter_otlp_endpoint },
+    { name = "OTEL_EXPORTER_OTLP_HEADERS", value = var.otel_exporter_otlp_headers },
+    { name = "OTEL_SAMPLER_RATIO", value = var.otel_sampler_ratio },
+    { name = "OTEL_SERVICE_VERSION", value = var.app_version },
+  ] : []
+
+  app_env = concat([
     { name = "DATABASE_URL", value = local.database_url },
     { name = "REDIS_URL", value = local.redis_url },
     { name = "DJANGO_SECRET_KEY", value = random_password.django_secret.result },
     { name = "DJANGO_DEBUG", value = "false" },
-  ]
+  ], local.otel_env)
 
   web_env = concat(local.app_env, [
     # Railway healthchecks probe the port in PORT and send

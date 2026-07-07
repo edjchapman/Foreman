@@ -13,6 +13,11 @@ dependencies = [
     "channels[daphne]>=4.3.2",
     "channels-redis>=4.3.0",
     "whitenoise>=6.12.0",
+    "opentelemetry-sdk>=1.30",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.30",
+    "opentelemetry-instrumentation-django>=0.51b0",
+    "opentelemetry-instrumentation-celery>=0.51b0",
+    "opentelemetry-instrumentation-psycopg>=0.51b0",
 ]
 
 [dependency-groups]

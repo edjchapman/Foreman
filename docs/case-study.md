@@ -212,9 +212,14 @@ throughput and the zero-failure result unchanged.
 
 ## What I'd build next
 
-OpenTelemetry traces spanning API → outbox → worker → realtime; WebSocket metrics
-and per-connection auth; remote CSV sources (`s3://`, `https://`) behind the
-existing ingest seam; and relaxing the now-fallback Beat poll to cut idle DB load.
+WebSocket metrics and per-connection auth; remote CSV sources (`s3://`, `https://`)
+behind the existing ingest seam; and relaxing the now-fallback Beat poll to cut idle
+DB load.
+
+**Since shipped:** OpenTelemetry distributed tracing now stitches API → outbox → worker
+→ realtime into one trace per job — bridging the transactional outbox by persisting the
+trace context in the outbox row and re-hydrating it at dispatch, with `trace_id`/`span_id`
+woven into the JSON logs ([ADR 0008](adr/0008-opentelemetry-tracing.md)).
 
 ---
 

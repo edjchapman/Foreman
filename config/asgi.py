@@ -8,6 +8,11 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 # touches models/consumers — the Channels docs pattern. Hence the E402 waivers below.
 django_asgi_app = get_asgi_application()
 
+# Instrument the web process once Django is set up (no fork here — daphne is single-process).
+from config.otel import configure_tracing  # noqa: E402
+
+configure_tracing("foreman-web")
+
 from channels.auth import AuthMiddlewareStack  # noqa: E402
 from channels.routing import ProtocolTypeRouter, URLRouter  # noqa: E402
 from channels.security.websocket import AllowedHostsOriginValidator  # noqa: E402

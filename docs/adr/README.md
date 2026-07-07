@@ -13,3 +13,4 @@ older ones explicitly rather than by edit.
 | [0005](0005-deployment-platform.md) | Deployment platform: Railway, one image, semver-pinned CD | Accepted |
 | [0006](0006-load-testing-metrics.md) | Load testing & event-rate / latency metrics | Accepted |
 | [0007](0007-listen-notify-dispatch.md) | LISTEN/NOTIFY push-dispatch for the outbox | Accepted |
+| [0008](0008-opentelemetry-tracing.md) | OpenTelemetry distributed tracing across the outbox | Accepted |

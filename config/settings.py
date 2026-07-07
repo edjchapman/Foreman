@@ -148,6 +148,17 @@ LOGGING = {
     },
 }
 
+# === Observability: distributed tracing (M6, OpenTelemetry) ===
+# Off by default: CI, the test suite, and any deployment that doesn't set OTEL_ENABLED
+# pay zero cost and see no behavioural change (config.otel.configure_tracing is a no-op).
+# When on, each process exports spans over OTLP; endpoint + auth headers are read straight
+# from the standard OTEL_EXPORTER_OTLP_* env vars by the exporter. See ADR 0008.
+OTEL_ENABLED = os.environ.get("OTEL_ENABLED", "false").lower() == "true"
+# Parent-based head sampling ratio for *root* spans (children follow the parent's decision),
+# so a sampled request keeps its whole API→outbox→worker→realtime trace intact. 1.0 suits
+# the low-traffic demo; lower it if volume (and vendor cost) grows.
+OTEL_SAMPLER_RATIO = float(os.environ.get("OTEL_SAMPLER_RATIO", "1.0"))
+
 # === Realtime: Django Channels + WebSockets (M4) ===
 # Group-per-job fan-out of live status (jobs/realtime.py → jobs/consumers.py). Redis in
 # prod, reusing REDIS_URL; the test suite swaps this for InMemoryChannelLayer (conftest).

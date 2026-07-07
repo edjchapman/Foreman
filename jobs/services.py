@@ -12,6 +12,8 @@ from uuid import UUID
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
+from config.otel import inject_trace
+
 from .models import Job, OutboxEvent
 
 
@@ -33,10 +35,15 @@ def submit_job(*, job_type: str, payload: dict, idempotency_key: str | None) -> 
                 payload=payload,
                 idempotency_key=idempotency_key,
             )
+            # Persist the caller's trace context into the outbox row. The API's request
+            # span is active here (Django auto-instrumentation), so `inject_trace` captures
+            # it; the relay re-hydrates it at dispatch, bridging the transactional-outbox
+            # gap that in-process/broker propagation can't cross. Empty when tracing is off
+            # or there's no active span (a direct call / management command). See ADR 0008.
             OutboxEvent.objects.create(
                 job=job,
                 event_type="job.created",
-                payload={"job_id": str(job.id)},
+                payload={"job_id": str(job.id), "trace": inject_trace()},
             )
     except IntegrityError:
         # Lost the race to a concurrent first submit with the same key — the unique

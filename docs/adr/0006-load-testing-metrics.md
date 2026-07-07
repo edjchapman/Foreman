@@ -82,6 +82,7 @@ itself — the evidence is scraped server-side.
   large terminal-row population ever makes the scrape measurable.
 - **No new runtime dependency.** The counter/histogram families come from the
   already-present `prometheus-client`; Locust is dev-only, never in the image.
-- **Future work:** OpenTelemetry traces spanning API → outbox → worker → realtime,
-  a per-`job_type` label once more than one job type exists, and a shipped
-  Grafana dashboard / Alertmanager rules built on these series.
+- **Future work:** a per-`job_type` label once more than one job type exists, and a
+  shipped Grafana dashboard / Alertmanager rules built on these series. OpenTelemetry
+  traces spanning API → outbox → worker → realtime shipped in
+  [ADR 0008](0008-opentelemetry-tracing.md).
