@@ -22,7 +22,12 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 
 # ---- Runtime: slim python, no uv ----
-FROM python:3.14-slim-bookworm@sha256:4ff4b92a68355dbdb52584ab3391dff8d371a61d4e063468bfd0130e3189c6d9 AS runtime
+# MUST match the builder's Python MINOR version (the uv image above is python3.12): the
+# copied venv symlinks /usr/local/bin/python3.12 and its site-packages live under
+# lib/python3.12/, so a 3.13/3.14 runtime can't import them (Django reads as "not
+# installed" at collectstatic). Dependabot must only bump the 3.12 DIGEST, never the
+# minor — #90 bumped 3.12→3.14 and silently broke every release image build until this pin.
+FROM python:3.12-slim-bookworm@sha256:8a7e7cc04fd3e2bd787f7f24e22d5d119aa590d429b50c95dfe12b3abe52f48b AS runtime
 
 # Put the venv first on PATH so `python`, `daphne`, and `celery` resolve to it directly —
 # no `uv run` in the runtime image.
