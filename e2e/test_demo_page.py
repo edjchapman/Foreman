@@ -17,6 +17,7 @@ BASE_URL = os.environ.get("FOREMAN_E2E_URL", "https://foreman-demo.up.railway.ap
 STATUS_TIMEOUT_MS = 90_000
 
 WS_JOB_PATH = re.compile(r"/ws/jobs/[0-9a-f-]{36}/$")
+WS_QUEUE_PATH = re.compile(r"/ws/queue/$")
 
 
 @pytest.fixture
@@ -94,6 +95,39 @@ def test_flaky_job_retries_then_recovers_over_websocket(demo_page: Page) -> None
     # Recovery, not first-try success: at least one earlier attempt was retried.
     retried = any(re.search(r'"attempts":\s*[2-9]', frame) for frame in frames)
     assert retried, f"expected a retry (attempts >= 2) before success, frames: {frames}"
+
+
+def test_queue_board_populates_over_queue_websocket(page: Page) -> None:
+    """The live board subscribes to the queue firehose on load (before any submit) and a
+    submitted job lands as a SUCCEEDED card in the Done lane — pushed, never polled."""
+    sockets: list[WebSocket] = []
+    frames: list[str] = []
+    job_polls: list[str] = []
+
+    def on_websocket(ws: WebSocket) -> None:
+        sockets.append(ws)
+        ws.on("framereceived", lambda payload: frames.append(str(payload)))
+
+    def on_request(request: Request) -> None:
+        is_job_get = request.method == "GET" and "/api/v1/jobs/" in request.url
+        if is_job_get and "/report/" not in request.url:
+            job_polls.append(request.url)
+
+    # Attach before navigation: the queue socket opens on page load, not on a click.
+    page.on("websocket", on_websocket)
+    page.on("request", on_request)
+    page.goto(f"{BASE_URL}/")
+
+    page.get_by_role("button", name="Import sample CSV").click()
+
+    done = page.locator('#queue-board .lane[data-lane="done"]')
+    expect(done.locator(".badge.SUCCEEDED").first).to_be_visible(timeout=STATUS_TIMEOUT_MS)
+
+    assert any(WS_QUEUE_PATH.search(ws.url) for ws in sockets), (
+        f"no queue WebSocket opened: {[w.url for w in sockets]}"
+    )
+    assert any("queue.snapshot" in f or "queue.job" in f for f in frames), "no queue frame received"
+    assert job_polls == [], f"board polled the job endpoint: {job_polls}"
 
 
 def test_dead_letter_then_redrive_recovers(demo_page: Page) -> None:

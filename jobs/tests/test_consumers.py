@@ -16,7 +16,7 @@ from channels.routing import URLRouter
 from channels.testing import WebsocketCommunicator
 from django.db import connection
 
-from jobs.realtime import job_group
+from jobs.realtime import QUEUE_GROUP, job_group
 from jobs.routing import websocket_urlpatterns
 from jobs.tests.factories import JobFactory
 
@@ -70,4 +70,36 @@ async def test_group_update_is_forwarded_to_the_client():
 
     msg = await comm.receive_json_from()
     assert msg["status"] == "SUCCEEDED"
+    await comm.disconnect()
+
+
+async def test_queue_connect_sends_snapshot():
+    older = await database_sync_to_async(JobFactory)()
+    newer = await database_sync_to_async(JobFactory)()
+    comm = WebsocketCommunicator(_app(), "/ws/queue/")
+
+    connected, _ = await comm.connect()
+    assert connected
+    snapshot = await comm.receive_json_from()
+
+    assert snapshot["type"] == "queue.snapshot"
+    ids = [j["id"] for j in snapshot["jobs"]]
+    assert ids[:2] == [str(newer.id), str(older.id)]  # newest-first
+    await comm.disconnect()
+
+
+async def test_queue_forwards_live_update():
+    comm = WebsocketCommunicator(_app(), "/ws/queue/")
+    assert (await comm.connect())[0]
+    await comm.receive_json_from()  # drain the snapshot
+
+    await comm.send_json_to({"ignored": True})  # inbound is a no-op (covers receive_json)
+    await get_channel_layer().group_send(
+        QUEUE_GROUP,
+        {"type": "queue.job", "data": {"id": "abc", "status": "SUCCEEDED"}},
+    )
+
+    msg = await comm.receive_json_from()
+    assert msg["type"] == "queue.job"
+    assert msg["job"] == {"id": "abc", "status": "SUCCEEDED"}
     await comm.disconnect()
