@@ -9,7 +9,7 @@ The [demo page](https://foreman-demo.up.railway.app) lets you drive the pipeline
 and watch a job move through it live — here a sample import has reached
 `SUCCEEDED`, with the queue's own metrics ticking above:
 
-![The Foreman demo page: a live metrics strip, the four scenarios, and a succeeded job with its pipeline stages and imported-row summary](assets/demo-success.png)
+![The Foreman demo page: a compact scenario control bar, a succeeded job with its pipeline stages and imported-row summary, and a live metrics strip above a three-lane queue board](assets/demo.png)
 
 ## Job state machine
 

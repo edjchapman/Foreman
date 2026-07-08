@@ -7,7 +7,7 @@
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](pyproject.toml)
 [![License: MIT](https://img.shields.io/github/license/edjchapman/foreman)](LICENSE)
 
-**Event-driven job-processing platform** demonstrating backend **reliability engineering beyond CRUD**: submit a property-CSV import and the API records it atomically with a **transactional outbox**, **idempotent workers** process it with **retries and a dead-letter path**, progress streams live over **WebSockets**, and the records come back as a **downloadable CSV report**. It's a portfolio project and it's **live**: [**foreman-demo.up.railway.app**](https://foreman-demo.up.railway.app). The full engineering narrative is the [**case study**](docs/case-study.md).
+**An event-driven job pipeline you can watch** — submit an import and follow it live over a WebSocket as it moves through a **transactional outbox**, an **idempotent worker**, **retries**, and a **dead-letter queue**. It's a portfolio project demonstrating backend **reliability engineering beyond CRUD**, and it's **live**: [**foreman-demo.up.railway.app**](https://foreman-demo.up.railway.app) — the full engineering narrative is the [**case study**](docs/case-study.md).
 
 ## Contents
 
@@ -31,7 +31,7 @@
 - **Send a job to the dead-letter queue** — retries exhaust into `DEAD_LETTER`; **redrive** it and watch it heal.
 - **Try an unsupported source** — poison input fails fast, no wasted retries.
 
-![The Foreman demo: a property-CSV import reaching SUCCEEDED on the first attempt — the four pipeline stages all green, an imported-row summary (rows_imported: 5), and a downloadable CSV report — with the live queue metrics ticking above, all streamed over a WebSocket](docs/assets/demo-success.png)
+![The Foreman demo: a compact scenario control bar over a job that has reached SUCCEEDED — the four pipeline stages green, an imported-row summary (rows_imported: 5), and a downloadable CSV report — above a live queue metrics strip and a three-lane board (Queued / Processing / Done), all streamed over a WebSocket](docs/assets/demo.png)
 
 ## Architecture
 
@@ -70,13 +70,7 @@ The **outbox** decouples submission from dispatch, the **relay** is a dumb publi
 | Worker crash | **Lease + reaper recovery** | An expired lease is reclaimed; a fencing token discards a resumed zombie's stale write. |
 | Concurrency | **Non-blocking claims** | `SELECT … FOR UPDATE SKIP LOCKED` (PostgreSQL). |
 
-Failure modes and the crash-window analysis are in [ADR 0002](docs/adr/0002-retries-dlq-lease.md); the [demo page](https://foreman-demo.up.railway.app) drives these states on purpose. A flaky import failing and **retrying with backoff** — the attempt counter climbing — then **recovering to `SUCCEEDED`** on its own, live over the WebSocket:
-
-![A flaky import failing, retrying with backoff while the attempt counter climbs, then recovering to SUCCEEDED with a downloadable CSV report — streamed live over a WebSocket](docs/assets/demo.gif)
-
-When retries exhaust instead of recovering, the job lands in `DEAD_LETTER` with a **Redrive** action for the operator:
-
-![The Foreman demo showing a job in the DEAD_LETTER state with a Redrive button, above a live metrics strip reporting the dead-letter count](docs/assets/demo-dead-letter.png)
+Failure modes and the crash-window analysis are in [ADR 0002](docs/adr/0002-retries-dlq-lease.md); the [demo page](https://foreman-demo.up.railway.app) drives every one of these states on purpose — a flaky import **retrying with backoff** (the attempt counter climbing) until it **recovers to `SUCCEEDED`**, or exhausting its retries into `DEAD_LETTER` with an operator **Redrive** that heals it — each streamed live over the WebSocket.
 
 ## Proven under load
 
