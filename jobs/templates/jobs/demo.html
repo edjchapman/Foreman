@@ -27,6 +27,8 @@
     /* Author display rules below (e.g. a#report) would otherwise beat [hidden]'s
        UA display:none, so hidden panels/links leak through — force it. */
     [hidden] { display: none !important; }
+    /* Hide x-show elements until Alpine boots, so the empty panel doesn't flash on load. */
+    [x-cloak] { display: none !important; }
     body { font: 16px/1.5 system-ui, sans-serif; max-width: 52rem; margin: 2.5rem auto; padding: 0 1rem;
            background: var(--bg); color: var(--text); }
     h1 { margin-bottom: 0.25rem; font-size: 2rem; letter-spacing: -0.02em; }
@@ -39,7 +41,10 @@
     button:disabled { opacity: 0.5; cursor: default; }
     /* Scenario control bar — the primary actions, kept compact so the live board stays in view. */
     .controls { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin: 0.25rem 0 0.4rem; }
-    .controls button { margin: 0; }
+    /* nowrap keeps each label on one line; short labels (the full action names live in
+       aria-label for the E2E accessible-name selectors + in title tooltips) let all four
+       buttons sit on a single row. They still wrap as a group on narrow screens. */
+    .controls button { margin: 0; white-space: nowrap; }
     button.primary { background: var(--accent); color: #fff; border-color: transparent; }
     button.primary:hover { background: color-mix(in srgb, var(--accent) 88%, #000); border-color: transparent; }
     p.hint { margin: 0 0 0.75rem; font-size: 0.82rem; color: var(--muted); }
@@ -117,48 +122,52 @@
   <p class="lede">An event-driven job pipeline you can <strong>watch</strong> — submit an import and follow it live over
     a WebSocket as it moves through a transactional outbox, an idempotent worker, retries, and a dead-letter queue.</p>
 
-  <!-- Scenario control bar: the primary actions up top and compact, so the live board (below) stays
-       in view instead of being pushed off-screen. Descriptions live in title tooltips. Button text is
-       unchanged — the E2E suite selects these by accessible name. -->
-  <div class="controls" role="group" aria-label="Run a scenario">
-    <button id="run-sample" class="primary" title="Happy path: outbox → relay → worker → SUCCEEDED, then a downloadable CSV report.">Import sample CSV</button>
-    <button id="run-flaky" title="Fails, then retries with backoff and recovers automatically — watch attempt climb.">Inject a flaky job</button>
-    <button id="run-dlq" title="Exhausts its retries into DEAD_LETTER, then redrive it — the operator recovery action.">Send a job to the dead-letter queue</button>
-    <button id="run-bad" title="Poison input fails fast (FAILED) with no wasted retries.">Try an unsupported source</button>
+  <!-- Controls + per-job panel are one Alpine component (jobDemo): the buttons call its run(),
+       and the panel binds to its reactive `job`. Scenario buttons stay up top and compact so the
+       live board (below) stays in view. Descriptions live in title tooltips; the visible labels are
+       short but each button's full accessible name is preserved in aria-label (the E2E suite selects
+       by accessible name). All the wiring lives in jobs/static/jobs/queue-board.js. -->
+  <div x-data="jobDemo()">
+    <div class="controls" role="group" aria-label="Run a scenario">
+      <button id="run-sample" class="primary" @click="run('sample')" title="Happy path: outbox → relay → worker → SUCCEEDED, then a downloadable CSV report.">Import sample CSV</button>
+      <button id="run-flaky" @click="run('flaky')" aria-label="Inject a flaky job" title="Fails, then retries with backoff and recovers automatically — watch attempt climb.">Flaky job</button>
+      <button id="run-dlq" @click="run('dlq')" aria-label="Send a job to the dead-letter queue" title="Exhausts its retries into DEAD_LETTER, then redrive it — the operator recovery action.">Dead-letter job</button>
+      <button id="run-bad" @click="run('bad')" aria-label="Try an unsupported source" title="Poison input fails fast (FAILED) with no wasted retries.">Unsupported source</button>
+    </div>
+    <p class="hint">Pick a scenario and watch it move through the pipeline and across the live board below.</p>
+
+    <!-- Per-job detail: shown once a scenario runs (above the board), so the pipeline and progress
+         are in view without scrolling. -->
+    <section id="panel" x-show="open" x-cloak>
+      <div class="row"><strong>Job</strong> <span class="id" id="job-id" x-text="job?.id"></span></div>
+      <div class="row">
+        <span class="badge" id="status" :class="job?.status" x-text="statusText">…</span>
+        <span>attempt <span id="attempts" x-text="job?.attempts ?? 0">0</span></span>
+        <button id="redrive" x-show="isDeadLetter" @click="redrive()">Redrive from dead-letter</button>
+      </div>
+
+      <div class="pipeline" id="pipeline">
+        <div class="stage" data-stage="submitted" :class="stageMod('submitted')"><span class="t">Submitted</span><span class="s">API + outbox (1 tx)</span></div>
+        <div class="stage" data-stage="queued" :class="stageMod('queued')"><span class="t">Queued</span><span class="s">relay · SKIP LOCKED</span></div>
+        <div class="stage" data-stage="worker" :class="stageMod('worker')"><span class="t">Worker</span><span class="s">idempotent import</span></div>
+        <div class="stage" data-stage="result" :class="stageMod('result')"><span class="t">Result</span><span class="s">terminal state</span></div>
+      </div>
+
+      <div class="track"><div class="fill" id="progress" :style="`width:${job?.progress || 0}%`"></div></div>
+      <pre id="detail" x-text="detail"></pre>
+      <a id="report" x-show="isSucceeded" :href="reportHref" download>Download report (CSV)</a>
+    </section>
   </div>
-  <p class="hint">Pick a scenario and watch it move through the pipeline and across the live board below.</p>
-
-  <!-- Per-job detail: hidden until a scenario runs, then appears here (above the board) so the
-       pipeline and progress are in view without scrolling. -->
-  <section id="panel" hidden>
-    <div class="row"><strong>Job</strong> <span class="id" id="job-id"></span></div>
-    <div class="row">
-      <span class="badge" id="status">…</span>
-      <span>attempt <span id="attempts">0</span></span>
-      <button id="redrive" hidden>Redrive from dead-letter</button>
-    </div>
-
-    <div class="pipeline" id="pipeline">
-      <div class="stage" data-stage="submitted"><span class="t">Submitted</span><span class="s">API + outbox (1 tx)</span></div>
-      <div class="stage" data-stage="queued"><span class="t">Queued</span><span class="s">relay · SKIP LOCKED</span></div>
-      <div class="stage" data-stage="worker"><span class="t">Worker</span><span class="s">idempotent import</span></div>
-      <div class="stage" data-stage="result"><span class="t">Result</span><span class="s">terminal state</span></div>
-    </div>
-
-    <div class="track"><div class="fill" id="progress"></div></div>
-    <pre id="detail"></pre>
-    <a id="report" hidden download>Download report (CSV)</a>
-  </section>
 
   <h2>Live queue</h2>
-  <div class="metrics" id="metrics">
-    <div class="metric"><div class="n" id="m-PENDING">–</div><div class="k">Pending</div></div>
-    <div class="metric"><div class="n" id="m-PROCESSING">–</div><div class="k">Processing</div></div>
-    <div class="metric"><div class="n" id="m-SUCCEEDED">–</div><div class="k">Succeeded</div></div>
-    <div class="metric"><div class="n" id="m-FAILED">–</div><div class="k">Failed</div></div>
-    <div class="metric dlq"><div class="n" id="m-DEAD_LETTER">–</div><div class="k">Dead-letter</div></div>
-    <div class="metric"><div class="n" id="m-outbox">–</div><div class="k">Outbox backlog</div></div>
-    <div class="metric"><div class="n" id="m-retry">–</div><div class="k">Retry queue</div></div>
+  <div class="metrics" id="metrics" x-data="metricsStrip()">
+    <div class="metric"><div class="n" x-text="m.PENDING">–</div><div class="k">Pending</div></div>
+    <div class="metric"><div class="n" x-text="m.PROCESSING">–</div><div class="k">Processing</div></div>
+    <div class="metric"><div class="n" x-text="m.SUCCEEDED">–</div><div class="k">Succeeded</div></div>
+    <div class="metric"><div class="n" x-text="m.FAILED">–</div><div class="k">Failed</div></div>
+    <div class="metric dlq"><div class="n" x-text="m.DEAD_LETTER">–</div><div class="k">Dead-letter</div></div>
+    <div class="metric"><div class="n" x-text="m.outbox">–</div><div class="k">Outbox backlog</div></div>
+    <div class="metric"><div class="n" x-text="m.retry">–</div><div class="k">Retry queue</div></div>
   </div>
 
   <section id="queue-board" class="lanes" x-data="queueBoard()">
@@ -212,119 +221,14 @@
   </section>
 
   <footer>
-    No polling — status is pushed over <code>ws/jobs/&lt;id&gt;/</code> (the E2E suite asserts it). Metrics are derived
+    No polling — status is pushed over <code>/ws/jobs/&lt;id&gt;/</code> (the E2E suite asserts it). Metrics are derived
     live from Postgres at <code>/api/v1/metrics/summary</code>. Source &amp; the full reliability write-up:
     <a href="https://github.com/edjchapman/foreman">github.com/edjchapman/foreman</a>.
   </footer>
 
-  {% verbatim %}
-  <script>
-    const $ = (id) => document.getElementById(id);
-    const getCookie = (n) =>
-      document.cookie.split("; ").find((r) => r.startsWith(n + "="))?.split("=")[1];
-    const HEAL_AFTER = document.body.dataset.healAfter || "20";
-
-    let ws = null;
-    let currentId = null;
-
-    async function submit(payload) {
-      if (ws) { ws.close(); ws = null; }
-      $("panel").hidden = false;
-      $("report").hidden = true;
-      $("redrive").hidden = true;
-      $("detail").textContent = "submitting…";
-      const res = await fetch("/api/v1/jobs/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-CSRFToken": getCookie("csrftoken") },
-        body: JSON.stringify({ job_type: "property_csv_import", payload }),
-      });
-      const job = await res.json();
-      currentId = job.id;
-      render(job);
-      stream(job.id);
-    }
-
-    function stream(id) {
-      // Browser sends an Origin header matching this page → AllowedHostsOriginValidator passes.
-      const scheme = location.protocol === "https:" ? "wss" : "ws";
-      ws = new WebSocket(`${scheme}://${location.host}/ws/jobs/${id}/`);
-      ws.onmessage = (e) => render(JSON.parse(e.data));
-    }
-
-    async function redrive() {
-      if (!currentId) return;
-      $("redrive").disabled = true;
-      await fetch(`/api/v1/jobs/${currentId}/redrive/`, {
-        method: "POST",
-        headers: { "X-CSRFToken": getCookie("csrftoken") },
-      });
-      $("redrive").disabled = false;
-      // Reopen the socket to get a fresh snapshot (PENDING) and stream the recovery.
-      if (ws) { ws.close(); }
-      stream(currentId);
-    }
-
-    // Which pipeline stages are done / active / failed for a given job snapshot.
-    function pipeline(job) {
-      const s = job.status;
-      const stages = { submitted: "done", queued: "", worker: "", result: "" };
-      if (s === "PENDING") stages.queued = "active";
-      else if (s === "PROCESSING") { stages.queued = "done"; stages.worker = "active"; }
-      else { // terminal
-        stages.queued = "done"; stages.worker = "done";
-        stages.result = (s === "SUCCEEDED") ? "done" : "fail";
-      }
-      return stages;
-    }
-
-    function render(job) {
-      $("job-id").textContent = job.id;
-      $("status").textContent = job.status;
-      $("status").className = "badge " + job.status;
-      $("attempts").textContent = job.attempts;
-      $("progress").style.width = (job.progress || 0) + "%";
-
-      const stages = pipeline(job);
-      document.querySelectorAll("#pipeline .stage").forEach((el) => {
-        el.className = "stage " + (stages[el.dataset.stage] || "");
-      });
-
-      const detail = job.error ? { error: job.error } : job.result;
-      $("detail").textContent = detail ? JSON.stringify(detail, null, 2) : "";
-
-      const report = $("report");
-      report.hidden = job.status !== "SUCCEEDED";
-      if (!report.hidden) report.href = `/api/v1/jobs/${job.id}/report/`;
-
-      $("redrive").hidden = job.status !== "DEAD_LETTER";
-    }
-
-    // --- Live metrics strip (independent of any one job) ---
-    async function pollMetrics() {
-      try {
-        const res = await fetch("/api/v1/metrics/summary");
-        const m = await res.json();
-        for (const [k, v] of Object.entries(m.jobs_by_status || {})) {
-          const el = $("m-" + k);
-          if (el) el.textContent = v;
-        }
-        $("m-outbox").textContent = m.outbox_pending ?? "–";
-        $("m-retry").textContent = m.retry_scheduled ?? "–";
-      } catch (_) { /* transient network blip — next tick retries */ }
-    }
-    pollMetrics();
-    setInterval(pollMetrics, 1500);
-
-    $("run-sample").onclick = () => submit({ source: "sample:properties.csv" });
-    $("run-flaky").onclick  = () => submit({ source: "fault:flaky" });
-    $("run-dlq").onclick    = () => submit({ source: `fault:heal-after:${HEAL_AFTER}` });
-    $("run-bad").onclick    = () => submit({ source: "s3://bucket/data.csv" });
-    $("redrive").onclick    = redrive;
-  </script>
-  {% endverbatim %}
-
-  <!-- Queue board: register the Alpine component BEFORE Alpine boots. With `defer`, scripts
-       run in document order, so queue-board.js (its alpine:init listener) must come first. -->
+  <!-- All demo behaviour lives in Alpine components (queueBoard / jobDemo / metricsStrip). Register
+       them BEFORE Alpine boots: with `defer`, scripts run in document order, so queue-board.js (its
+       alpine:init listener) must come before alpine.min.js. -->
   <script defer src="{% static 'jobs/queue-board.js' %}"></script>
   <script defer src="{% static 'jobs/vendor/alpine.min.js' %}"></script>
 </body>

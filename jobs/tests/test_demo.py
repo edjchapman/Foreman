@@ -17,9 +17,9 @@ def test_demo_page_renders(client):
     # The reliability scenarios + operator action that make the machinery visible.
     assert 'id="run-flaky"' in body
     assert 'id="run-dlq"' in body
-    assert 'id="redrive"' in body  # revealed by render() on DEAD_LETTER
+    assert 'id="redrive"' in body  # revealed by the jobDemo component on DEAD_LETTER
     assert 'id="metrics"' in body  # live queue-metrics strip (polls /metrics/summary)
-    assert 'id="report"' in body  # download link, revealed by render() on SUCCEEDED
+    assert 'id="report"' in body  # download link, revealed by the jobDemo component on SUCCEEDED
     # Live queue board: wired via a vendored Alpine component (the ws/queue/ URL itself lives
     # in queue-board.js, so it's asserted by the consumer + e2e suites, not here).
     assert 'id="queue-board"' in body
