@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.13.6](https://github.com/edjchapman/Foreman/compare/v0.13.5...v0.13.6) (2026-07-08)
+
+
+### Documentation
+
+* **claude:** extend the milestone roadmap with M6 and M7 ([#113](https://github.com/edjchapman/Foreman/issues/113)) ([6195623](https://github.com/edjchapman/Foreman/commit/6195623e3170e0a61e7f053b700663c36250abdf))
+* **readme:** extend the milestone note with M6 (load) and M7 (tracing) ([#112](https://github.com/edjchapman/Foreman/issues/112)) ([24e8bd1](https://github.com/edjchapman/Foreman/commit/24e8bd10a2b080c8b23d1c7ad4699e6f2112fec5))
+
 ## [0.13.5](https://github.com/edjchapman/Foreman/compare/v0.13.4...v0.13.5) (2026-07-08)
 
 
