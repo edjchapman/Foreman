@@ -33,7 +33,7 @@ Python 3.12, Django 6 + DRF, PostgreSQL 16, Redis + Celery, Django Channels + We
 
 ## Milestone roadmap
 
-M1 walking skeleton (submit/track API, no processing) → M2 worker + transactional outbox → M3 reliability (worker-side idempotency, retries, DLQ) → M4 realtime UI + observability → M5 ship (deploy, demo, case study). **All milestones (M1–M5) done** — the platform is live at https://foreman-demo.up.railway.app and the case study is `docs/case-study.md`. Remaining work is incremental (see the case study's "What I'd build next").
+M1 walking skeleton (submit/track API, no processing) → M2 worker + transactional outbox → M3 reliability (worker-side idempotency, retries, DLQ) → M4 realtime UI + observability → M5 ship (deploy, demo, case study), then incremental post-ship: M6 proven under load (Locust → LISTEN/NOTIFY push-dispatch; ADR 0006/0007) → M7 distributed tracing (OpenTelemetry across the outbox; ADR 0008). **All milestones (M1–M7) done** — the platform is live at https://foreman-demo.up.railway.app and the case study is `docs/case-study.md`. Remaining work is incremental (see the case study's "What I'd build next").
 
 ## Conventions
 
