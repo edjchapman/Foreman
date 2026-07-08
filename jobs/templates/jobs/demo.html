@@ -75,9 +75,14 @@
 
     /* Live queue board: three lanes of job cards that move as status changes */
     .lanes { display: grid; gap: 0.6rem; grid-template-columns: repeat(3, 1fr); align-items: start; }
-    .lane { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 0.6rem; min-height: 4rem; }
+    .lane { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 0.6rem; min-height: 4rem; }
     .lane h3 { margin: 0 0 0.5rem; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
     .lane h3 .c { color: var(--text); font-variant-numeric: tabular-nums; }
+    /* Cards scroll within a fixed-height area so a filling lane (esp. Done) never grows the
+       page and pushes the controls below the fold. The h3 count stays pinned above it. */
+    .lane-cards { overflow-y: auto; max-height: 20rem; scrollbar-width: thin; }
+    /* Reserve gutter space so a card's right edge doesn't sit under the scrollbar. */
+    .lane-cards:not(:empty) { padding-right: 0.2rem; }
     .queue-card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 0.5rem 0.6rem; margin-bottom: 0.5rem; }
     .queue-card:last-child { margin-bottom: 0; }
     .queue-card .top { display: flex; align-items: center; gap: 0.4rem; justify-content: space-between; }
@@ -119,44 +124,50 @@
   <section id="queue-board" class="lanes" x-data="queueBoard()">
     <div class="lane" data-lane="queued">
       <h3>Queued <span class="c" x-text="queued.length">0</span></h3>
-      <template x-for="job in queued" :key="job.id">
-        <article class="queue-card" :data-job-id="job.id" :class="{ flash: job.id === flashId }">
-          <div class="top">
-            <span class="badge" :class="job.status" x-text="job.status"></span>
-            <span class="cid" x-text="job.id.slice(0, 8)"></span>
-          </div>
-          <div class="meta"><span x-text="job.job_type"></span> · attempt <span x-text="job.attempts"></span></div>
-          <div class="track"><div class="fill" :style="'width:' + (job.progress || 0) + '%'"></div></div>
-        </article>
-      </template>
-      <p class="empty" x-show="!queued.length">idle</p>
+      <div class="lane-cards">
+        <template x-for="job in queued" :key="job.id">
+          <article class="queue-card" :data-job-id="job.id" :class="{ flash: job.id === flashId }">
+            <div class="top">
+              <span class="badge" :class="job.status" x-text="job.status"></span>
+              <span class="cid" x-text="job.id.slice(0, 8)"></span>
+            </div>
+            <div class="meta"><span x-text="job.job_type"></span> · attempt <span x-text="job.attempts"></span></div>
+            <div class="track"><div class="fill" :style="'width:' + (job.progress || 0) + '%'"></div></div>
+          </article>
+        </template>
+        <p class="empty" x-show="!queued.length">idle</p>
+      </div>
     </div>
     <div class="lane" data-lane="processing">
       <h3>Processing <span class="c" x-text="processing.length">0</span></h3>
-      <template x-for="job in processing" :key="job.id">
-        <article class="queue-card" :data-job-id="job.id" :class="{ flash: job.id === flashId }">
-          <div class="top">
-            <span class="badge" :class="job.status" x-text="job.status"></span>
-            <span class="cid" x-text="job.id.slice(0, 8)"></span>
-          </div>
-          <div class="meta"><span x-text="job.job_type"></span> · attempt <span x-text="job.attempts"></span></div>
-          <div class="track"><div class="fill" :style="'width:' + (job.progress || 0) + '%'"></div></div>
-        </article>
-      </template>
-      <p class="empty" x-show="!processing.length">idle</p>
+      <div class="lane-cards">
+        <template x-for="job in processing" :key="job.id">
+          <article class="queue-card" :data-job-id="job.id" :class="{ flash: job.id === flashId }">
+            <div class="top">
+              <span class="badge" :class="job.status" x-text="job.status"></span>
+              <span class="cid" x-text="job.id.slice(0, 8)"></span>
+            </div>
+            <div class="meta"><span x-text="job.job_type"></span> · attempt <span x-text="job.attempts"></span></div>
+            <div class="track"><div class="fill" :style="'width:' + (job.progress || 0) + '%'"></div></div>
+          </article>
+        </template>
+        <p class="empty" x-show="!processing.length">idle</p>
+      </div>
     </div>
     <div class="lane" data-lane="done">
       <h3>Done <span class="c" x-text="done.length">0</span></h3>
-      <template x-for="job in done" :key="job.id">
-        <article class="queue-card" :data-job-id="job.id" :class="{ flash: job.id === flashId }">
-          <div class="top">
-            <span class="badge" :class="job.status" x-text="job.status"></span>
-            <span class="cid" x-text="job.id.slice(0, 8)"></span>
-          </div>
-          <div class="meta"><span x-text="job.job_type"></span> · attempt <span x-text="job.attempts"></span></div>
-        </article>
-      </template>
-      <p class="empty" x-show="!done.length">idle</p>
+      <div class="lane-cards">
+        <template x-for="job in done" :key="job.id">
+          <article class="queue-card" :data-job-id="job.id" :class="{ flash: job.id === flashId }">
+            <div class="top">
+              <span class="badge" :class="job.status" x-text="job.status"></span>
+              <span class="cid" x-text="job.id.slice(0, 8)"></span>
+            </div>
+            <div class="meta"><span x-text="job.job_type"></span> · attempt <span x-text="job.attempts"></span></div>
+          </article>
+        </template>
+        <p class="empty" x-show="!done.length">idle</p>
+      </div>
     </div>
   </section>
 
