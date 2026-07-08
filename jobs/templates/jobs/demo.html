@@ -30,22 +30,25 @@
     body { font: 16px/1.5 system-ui, sans-serif; max-width: 52rem; margin: 2.5rem auto; padding: 0 1rem;
            background: var(--bg); color: var(--text); }
     h1 { margin-bottom: 0.25rem; font-size: 2rem; letter-spacing: -0.02em; }
-    h2 { font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 2.25rem 0 0.75rem; }
+    h2 { font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 1.6rem 0 0.6rem; }
     p.lede { color: var(--muted); margin-top: 0; }
     button { font: inherit; padding: 0.5rem 0.9rem; margin: 0.25rem 0.5rem 0.25rem 0; cursor: pointer;
              border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); }
     button:hover { background: color-mix(in srgb, var(--surface) 92%, var(--text)); border-color: var(--muted); }
     button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     button:disabled { opacity: 0.5; cursor: default; }
-    .scenarios { display: grid; gap: 0.6rem; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); }
-    .scenario { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 1rem 1.1rem; }
-    .scenario p { margin: 0.4rem 0 0; font-size: 0.85rem; color: var(--muted); }
+    /* Scenario control bar — the primary actions, kept compact so the live board stays in view. */
+    .controls { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin: 0.25rem 0 0.4rem; }
+    .controls button { margin: 0; }
+    button.primary { background: var(--accent); color: #fff; border-color: transparent; }
+    button.primary:hover { background: color-mix(in srgb, var(--accent) 88%, #000); border-color: transparent; }
+    p.hint { margin: 0 0 0.75rem; font-size: 0.82rem; color: var(--muted); }
 
-    /* Live metrics strip */
-    .metrics { display: grid; gap: 0.6rem; grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr)); }
-    .metric { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 0.6rem 0.75rem; text-align: center; }
-    .metric .n { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-    .metric .k { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+    /* Live metrics strip (slim — informs without competing with the board hero). */
+    .metrics { display: grid; gap: 0.5rem; grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr)); margin-bottom: 0.85rem; }
+    .metric { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 0.45rem 0.5rem; text-align: center; }
+    .metric .n { font-size: 1.2rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .metric .k { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted); }
     .metric.dlq .n { color: var(--fail); }
 
     /* Job panel */
@@ -92,6 +95,14 @@
     .queue-card.flash { animation: flash 1s ease; }
     @keyframes flash { from { box-shadow: 0 0 0 2px var(--accent); } to { box-shadow: 0 0 0 2px transparent; } }
     .lane .empty { color: var(--muted); font-size: 0.78rem; }
+    /* Small screens: stack the three lanes (a fixed 3-column grid overflows at ~390px) and
+       shorten each scroll area so the vertical stack stays manageable. */
+    @media (max-width: 640px) {
+      body { margin: 1.5rem auto; }
+      h1 { font-size: 1.6rem; }
+      .lanes { grid-template-columns: 1fr; }
+      .lane-cards { max-height: 14rem; }
+    }
 
     pre { background: var(--surface); border: 1px solid var(--line); padding: 0.75rem; border-radius: 8px; overflow: auto; font-size: 0.85em; margin: 0.5rem 0 0; }
     a#report { display: inline-block; margin-top: 0.75rem; }
@@ -103,11 +114,43 @@
 </head>
 <body data-heal-after="{{ heal_after_seconds }}">
   <h1>Foreman</h1>
-  <p class="lede">An event-driven job pipeline you can <strong>watch</strong>: submit a property-CSV import
-    and see it move through a transactional outbox, an idempotent worker, retries with backoff, a dead-letter
-    queue, and operator redrive — live over a WebSocket, with the queue's own metrics ticking beside it.</p>
+  <p class="lede">An event-driven job pipeline you can <strong>watch</strong> — submit an import and follow it live over
+    a WebSocket as it moves through a transactional outbox, an idempotent worker, retries, and a dead-letter queue.</p>
 
-  <h2>Live queue metrics</h2>
+  <!-- Scenario control bar: the primary actions up top and compact, so the live board (below) stays
+       in view instead of being pushed off-screen. Descriptions live in title tooltips. Button text is
+       unchanged — the E2E suite selects these by accessible name. -->
+  <div class="controls" role="group" aria-label="Run a scenario">
+    <button id="run-sample" class="primary" title="Happy path: outbox → relay → worker → SUCCEEDED, then a downloadable CSV report.">Import sample CSV</button>
+    <button id="run-flaky" title="Fails, then retries with backoff and recovers automatically — watch attempt climb.">Inject a flaky job</button>
+    <button id="run-dlq" title="Exhausts its retries into DEAD_LETTER, then redrive it — the operator recovery action.">Send a job to the dead-letter queue</button>
+    <button id="run-bad" title="Poison input fails fast (FAILED) with no wasted retries.">Try an unsupported source</button>
+  </div>
+  <p class="hint">Pick a scenario and watch it move through the pipeline and across the live board below.</p>
+
+  <!-- Per-job detail: hidden until a scenario runs, then appears here (above the board) so the
+       pipeline and progress are in view without scrolling. -->
+  <section id="panel" hidden>
+    <div class="row"><strong>Job</strong> <span class="id" id="job-id"></span></div>
+    <div class="row">
+      <span class="badge" id="status">…</span>
+      <span>attempt <span id="attempts">0</span></span>
+      <button id="redrive" hidden>Redrive from dead-letter</button>
+    </div>
+
+    <div class="pipeline" id="pipeline">
+      <div class="stage" data-stage="submitted"><span class="t">Submitted</span><span class="s">API + outbox (1 tx)</span></div>
+      <div class="stage" data-stage="queued"><span class="t">Queued</span><span class="s">relay · SKIP LOCKED</span></div>
+      <div class="stage" data-stage="worker"><span class="t">Worker</span><span class="s">idempotent import</span></div>
+      <div class="stage" data-stage="result"><span class="t">Result</span><span class="s">terminal state</span></div>
+    </div>
+
+    <div class="track"><div class="fill" id="progress"></div></div>
+    <pre id="detail"></pre>
+    <a id="report" hidden download>Download report (CSV)</a>
+  </section>
+
+  <h2>Live queue</h2>
   <div class="metrics" id="metrics">
     <div class="metric"><div class="n" id="m-PENDING">–</div><div class="k">Pending</div></div>
     <div class="metric"><div class="n" id="m-PROCESSING">–</div><div class="k">Processing</div></div>
@@ -118,9 +161,6 @@
     <div class="metric"><div class="n" id="m-retry">–</div><div class="k">Retry queue</div></div>
   </div>
 
-  <h2>Live queue board</h2>
-  <p class="lede">Every job's transitions, pushed over <code>ws/queue/</code> — the whole queue at once.
-    Run a scenario below and watch cards move across the lanes in real time.</p>
   <section id="queue-board" class="lanes" x-data="queueBoard()">
     <div class="lane" data-lane="queued">
       <h3>Queued <span class="c" x-text="queued.length">0</span></h3>
@@ -169,46 +209,6 @@
         <p class="empty" x-show="!done.length">idle</p>
       </div>
     </div>
-  </section>
-
-  <h2>Run a scenario</h2>
-  <div class="scenarios">
-    <div class="scenario">
-      <button id="run-sample">Import sample CSV</button>
-      <p>Happy path: outbox → relay → worker → <strong>SUCCEEDED</strong>, then a downloadable CSV report.</p>
-    </div>
-    <div class="scenario">
-      <button id="run-flaky">Inject a flaky job</button>
-      <p>Fails, then <strong>retries with backoff</strong> and recovers automatically — watch <em>attempt</em> climb.</p>
-    </div>
-    <div class="scenario">
-      <button id="run-dlq">Send a job to the dead-letter queue</button>
-      <p>Exhausts its retries into <strong>DEAD_LETTER</strong>. Then <em>redrive</em> it — the operator recovery action.</p>
-    </div>
-    <div class="scenario">
-      <button id="run-bad">Try an unsupported source</button>
-      <p>Poison input <strong>fails fast</strong> (<strong>FAILED</strong>) with no wasted retries.</p>
-    </div>
-  </div>
-
-  <section id="panel" hidden>
-    <div class="row"><strong>Job</strong> <span class="id" id="job-id"></span></div>
-    <div class="row">
-      <span class="badge" id="status">…</span>
-      <span>attempt <span id="attempts">0</span></span>
-      <button id="redrive" hidden>Redrive from dead-letter</button>
-    </div>
-
-    <div class="pipeline" id="pipeline">
-      <div class="stage" data-stage="submitted"><span class="t">Submitted</span><span class="s">API + outbox (1 tx)</span></div>
-      <div class="stage" data-stage="queued"><span class="t">Queued</span><span class="s">relay · SKIP LOCKED</span></div>
-      <div class="stage" data-stage="worker"><span class="t">Worker</span><span class="s">idempotent import</span></div>
-      <div class="stage" data-stage="result"><span class="t">Result</span><span class="s">terminal state</span></div>
-    </div>
-
-    <div class="track"><div class="fill" id="progress"></div></div>
-    <pre id="detail"></pre>
-    <a id="report" hidden download>Download report (CSV)</a>
   </section>
 
   <footer>
