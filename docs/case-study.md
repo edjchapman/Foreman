@@ -144,8 +144,10 @@ rules keep the notorious Channels pitfalls out:
   seam would turn a SUCCEEDED job into a spurious retry. The realtime layer is
   strictly additive to the reliability model.
 
-The demo page (and the E2E suite) verify the point end-to-end: status arrives
-over the socket, and the tests **assert the page never polls**.
+The demo page — an interactive console built on a **vendored Alpine.js with no
+build step**, the same dependency restraint as the rest of the stack — and the E2E
+suite verify the point end-to-end: status arrives over the socket, and the tests
+**assert the page never polls**.
 
 ## Finish the story: the streamed report
 
@@ -181,6 +183,13 @@ demo's off/on switch (usage-billed, ~$8–12/mo).
 ([docs/ci.md](ci.md) · [docs/deploy.md](deploy.md) ·
 [ADR 0005](adr/0005-deployment-platform.md))
 
+One gap later taught the value of gate *placement*. The release image is built only
+on release, not in PR CI — so a Dependabot base-image bump, moving the runtime Python
+3.12 → 3.14 while the builder's venv stayed 3.12, merged green and only failed at the
+next deploy's image build (a stale interpreter can't import the copied venv). The fix
+restored the version pin *and* added a PR-time `docker build` job, moving the gate next
+to the change it guards instead of weeks downstream.
+
 ## Prove it under load: measured, not asserted
 
 Every claim above is about behaviour under pressure, so the pressure has to be
@@ -210,16 +219,33 @@ wait **p50 733 ms → 41 ms**, **p95 1.84 s → 0.34 s**, end-to-end latency hal
 throughput and the zero-failure result unchanged.
 ([ADR 0007](adr/0007-listen-notify-dispatch.md))
 
+## Follow one job across four processes: distributed tracing
+
+Logs and metrics each see one process in isolation; neither answers *where did this
+one job spend its time?* across the four boundaries it crosses — API, outbox relay,
+worker, realtime. Distributed tracing does — but the transactional outbox is exactly
+what defeats out-of-the-box instrumentation. OpenTelemetry propagates context through
+in-process calls and through the broker message, but **not across a row written now
+and read later by another process**: the API commits an `OutboxEvent` and returns; a
+separate relay dispatches it a beat later. So the trace context is **persisted into
+the outbox row** at write and **re-hydrated per event** at dispatch — and after that
+one manual hop, Celery's own instrumentation carries it to the worker for free.
+
+The bridge is deliberately cheap. The W3C `traceparent` rides the outbox row's
+**existing JSON payload** — no schema change; it stays **env-gated off by default**,
+so CI, the test suite, and any un-opted deployment pay nothing; each process tags its
+spans with a distinct `service.name`; and `trace_id`/`span_id` are promoted onto every
+JSON log line, so one query pivots from a job's log event to its trace and back. The
+result is one connected trace per job — API → `outbox.dispatch` → worker → ingest →
+realtime — proven by a hermetic test that asserts a shared `trace_id` and parent chain
+**across the outbox boundary**, the one seam that had to be bridged by hand.
+([ADR 0008](adr/0008-opentelemetry-tracing.md))
+
 ## What I'd build next
 
 WebSocket metrics and per-connection auth; remote CSV sources (`s3://`, `https://`)
 behind the existing ingest seam; and relaxing the now-fallback Beat poll to cut idle
 DB load.
-
-**Since shipped:** OpenTelemetry distributed tracing now stitches API → outbox → worker
-→ realtime into one trace per job — bridging the transactional outbox by persisting the
-trace context in the outbox row and re-hydrating it at dispatch, with `trace_id`/`span_id`
-woven into the JSON logs ([ADR 0008](adr/0008-opentelemetry-tracing.md)).
 
 ---
 
