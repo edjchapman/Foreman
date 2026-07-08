@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.4](https://github.com/edjchapman/Foreman/compare/v0.13.3...v0.13.4) (2026-07-08)
+
+
+### Code Refactoring
+
+* **demo:** consolidate the page on Alpine, one-row controls, refresh README ([#108](https://github.com/edjchapman/Foreman/issues/108)) ([75f7d8e](https://github.com/edjchapman/Foreman/commit/75f7d8e92b84ace1d26c97c07b7f92cf35dbe820))
+
 ## [0.13.3](https://github.com/edjchapman/Foreman/compare/v0.13.2...v0.13.3) (2026-07-08)
 
 
