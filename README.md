@@ -139,7 +139,7 @@ The repo is operated like a production service:
 - **Automated releases & deploys**: Conventional Commits drive release-please → versioned GHCR image → Railway deploy with the semver tag pinned ([docs/deploy.md](docs/deploy.md)); the platform itself is Terraform-provisioned ([ADR 0005](docs/adr/0005-deployment-platform.md)).
 - **Operability**: structured JSON logs, split liveness/readiness probes, an operator [runbook](docs/runbook.md), and decisions captured as [ADRs](docs/adr/README.md).
 
-Built in five milestones (walking skeleton → outbox → reliability → realtime + observability → ship), all delivered — the narrative, and what I'd build next, are in the [case study](docs/case-study.md).
+Built in five milestones (walking skeleton → outbox → reliability → realtime + observability → ship), all delivered — then extended post-ship with two incremental milestones: **M6 — proven under load** (a Locust harness surfaced queue-wait as the bottleneck, answered with LISTEN/NOTIFY push-dispatch; [ADR 0006](docs/adr/0006-load-testing-metrics.md), [ADR 0007](docs/adr/0007-listen-notify-dispatch.md)) and **M7 — distributed tracing** (OpenTelemetry stitched across the transactional outbox; [ADR 0008](docs/adr/0008-opentelemetry-tracing.md)). The narrative, and what I'd build next, are in the [case study](docs/case-study.md).
 
 ## Built with agentic development
 
