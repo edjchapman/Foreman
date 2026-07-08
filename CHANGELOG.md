@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.3](https://github.com/edjchapman/Foreman/compare/v0.13.2...v0.13.3) (2026-07-08)
+
+
+### Code Refactoring
+
+* **demo:** put live activity centre stage with a compact control bar ([#106](https://github.com/edjchapman/Foreman/issues/106)) ([a280c0c](https://github.com/edjchapman/Foreman/commit/a280c0c6c72fed776f0bf85d4b86edb4cd81d64b))
+
 ## [0.13.2](https://github.com/edjchapman/Foreman/compare/v0.13.1...v0.13.2) (2026-07-08)
 
 
