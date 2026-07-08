@@ -70,3 +70,18 @@ jobs:
           terraform_version: 1.15.7 # match the operator's local CLI; module caps at < 2.0
       - name: fmt + validate the platform module
         run: make tf-check
+
+  image:
+    name: docker build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      # The production image is otherwise built only on release (publish-image in
+      # release-please.yml). Building it here — same `docker build`, so its collectstatic
+      # RUN executes — catches base-image / venv regressions (e.g. a Dependabot Python
+      # bump that mismatches builder vs runtime, #90/#101) at PR time, not at release.
+      - name: Build the release image (no push)
+        run: make image
