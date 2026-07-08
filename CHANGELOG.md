@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.2](https://github.com/edjchapman/Foreman/compare/v0.13.1...v0.13.2) (2026-07-08)
+
+
+### Bug Fixes
+
+* **demo:** cap queue-board lane height so it scrolls instead of growing the page ([#104](https://github.com/edjchapman/Foreman/issues/104)) ([e3dcd95](https://github.com/edjchapman/Foreman/commit/e3dcd95b93d58c3412e51a86d076177dcbfbad80))
+
 ## [0.13.1](https://github.com/edjchapman/Foreman/compare/v0.13.0...v0.13.1) (2026-07-07)
 
 
