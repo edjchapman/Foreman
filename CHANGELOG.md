@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.5](https://github.com/edjchapman/Foreman/compare/v0.13.4...v0.13.5) (2026-07-08)
+
+
+### Documentation
+
+* **case-study:** add distributed tracing, gate-placement, and buildless-demo notes ([#110](https://github.com/edjchapman/Foreman/issues/110)) ([36e721d](https://github.com/edjchapman/Foreman/commit/36e721d80bd4e63bf1098402c8525a37e574b6a9))
+
 ## [0.13.4](https://github.com/edjchapman/Foreman/compare/v0.13.3...v0.13.4) (2026-07-08)
 
 
