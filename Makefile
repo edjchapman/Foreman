@@ -1,4 +1,4 @@
-.PHONY: help up down clean build logs migrate makemigrations test e2e load lint fmt typecheck audit ci preflight shell \
+.PHONY: help up down clean build image logs migrate makemigrations test e2e load lint fmt typecheck audit ci preflight shell \
         worker beat relay listener deploy configure tf-check \
         check check-links check-anchors stack-check \
         check-commit-msg check-stale-branches sweep-branches lint-md
@@ -23,6 +23,9 @@ clean: ## Stop the stack and wipe volumes (destroys local Postgres data)
 
 build: ## Build the web image
 	docker compose build
+
+image: ## Build the production image the release publishes (no push) — release-parity gate
+	docker build -t foreman:ci-check .
 
 logs: ## Tail stack logs
 	docker compose logs -f
