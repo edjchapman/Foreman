@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.13.7](https://github.com/edjchapman/Foreman/compare/v0.13.6...v0.13.7) (2026-07-20)
+
+
+### Bug Fixes
+
+* **deps:** bump Django to 6.0.7 for PYSEC-2026-2090/2091/2092 ([#118](https://github.com/edjchapman/Foreman/issues/118)) ([2196988](https://github.com/edjchapman/Foreman/commit/219698893bec464c7acbd25f76784eff86e8e21d))
+
+
+### Documentation
+
+* link the portfolio project page from the README ([#117](https://github.com/edjchapman/Foreman/issues/117)) ([26e9074](https://github.com/edjchapman/Foreman/commit/26e9074d907cbfef0113546ad4d826e1ba04efdf))
+
 ## [0.13.6](https://github.com/edjchapman/Foreman/compare/v0.13.5...v0.13.6) (2026-07-08)
 
 
