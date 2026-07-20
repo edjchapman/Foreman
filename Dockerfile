@@ -27,7 +27,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # lib/python3.12/, so a 3.13/3.14 runtime can't import them (Django reads as "not
 # installed" at collectstatic). Dependabot must only bump the 3.12 DIGEST, never the
 # minor — #90 bumped 3.12→3.14 and silently broke every release image build until this pin.
-FROM python:3.12-slim-bookworm@sha256:8a7e7cc04fd3e2bd787f7f24e22d5d119aa590d429b50c95dfe12b3abe52f48b AS runtime
+FROM python:3.14-slim-bookworm@sha256:86f975aca15cf04a40b399eebede9aea7c82eae084d1f1a0a6ef6bcaae871a30 AS runtime
 
 # Put the venv first on PATH so `python`, `daphne`, and `celery` resolve to it directly —
 # no `uv run` in the runtime image.
