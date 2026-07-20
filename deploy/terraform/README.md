@@ -17,10 +17,10 @@ The public GraphQL API *can* express them, so after `apply` they are applied by
 
 | Service | Setting | Value |
 |---|---|---|
-| web | Pre-Deploy Command | `uv run --no-dev python manage.py migrate` |
+| web | Pre-Deploy Command | `python manage.py migrate` |
 | web | Healthcheck Path | `/readyz` |
-| worker | Custom Start Command | `uv run --no-dev celery -A config worker -l info --concurrency 2` |
-| beat | Custom Start Command | `uv run --no-dev celery -A config beat -l info` |
+| worker | Custom Start Command | `celery -A config worker -l info --concurrency 2` |
+| beat | Custom Start Command | `celery -A config beat -l info` |
 
 They survive image re-pins by the CD script (deploys change `source.image`,
 not service settings), so this is genuinely one-shot per platform build — and
