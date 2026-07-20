@@ -21,11 +21,12 @@ The public GraphQL API *can* express them, so after `apply` they are applied by
 | web | Healthcheck Path | `/readyz` |
 | worker | Custom Start Command | `celery -A config worker -l info --concurrency 2` |
 | beat | Custom Start Command | `celery -A config beat -l info` |
+| listener *(optional)* | Custom Start Command | `python manage.py outbox_listener` |
 
 They survive image re-pins by the CD script (deploys change `source.image`,
 not service settings), so this is genuinely one-shot per platform build — and
 because it's scripted, a rebuilt platform is reconfigured with one command
-instead of four dashboard edits.
+instead of editing each by hand in the dashboard.
 
 ## Usage
 
