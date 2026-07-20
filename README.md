@@ -9,6 +9,8 @@
 
 **An event-driven job pipeline you can watch** — submit an import and follow it live over a WebSocket as it moves through a **transactional outbox**, an **idempotent worker**, **retries**, and a **dead-letter queue**. It's a portfolio project demonstrating backend **reliability engineering beyond CRUD**, and it's **live**: [**foreman-demo.up.railway.app**](https://foreman-demo.up.railway.app) — the full engineering narrative is the [**case study**](docs/case-study.md).
 
+> Part of my portfolio — project page at **[edwardchapman.co.uk/projects/foreman](https://edwardchapman.co.uk/projects/foreman)**.
+
 ## Contents
 
 - [Live demo](#live-demo)
