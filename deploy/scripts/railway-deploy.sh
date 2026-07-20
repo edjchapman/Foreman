@@ -43,7 +43,7 @@ POLL_SECONDS="${POLL_SECONDS:-10}"
 : "${RAILWAY_BEAT_SERVICE_ID:?RAILWAY_BEAT_SERVICE_ID is required}"
 
 # Shared Railway plumbing: RAILWAY_API, AUTH_HEADER (token-kind aware), gql().
-# shellcheck source=scripts/_lib-railway.sh
+# shellcheck source=deploy/scripts/_lib-railway.sh
 . "$(dirname "${BASH_SOURCE[0]}")/_lib-railway.sh"
 
 check_image_exists() { # fail before pinning anything if the tag was never published

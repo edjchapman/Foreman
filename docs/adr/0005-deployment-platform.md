@@ -46,7 +46,7 @@ floor buys not operating databases by hand.
 Railway does not watch GHCR, and `railway redeploy` re-runs the *previous*
 deployment's original image reference — neither is a CD mechanism. Each release,
 a workflow job calls `make deploy VERSION=<x.y.z>`
-([`scripts/railway-deploy.sh`](../../scripts/railway-deploy.sh)): GraphQL
+([`deploy/scripts/railway-deploy.sh`](../../deploy/scripts/railway-deploy.sh)): GraphQL
 `serviceInstanceUpdate` pins `source.image` to the exact tag, then
 `serviceInstanceDeployV2` creates the deployment. Every Railway deployment is
 reproducible, and dashboard rollback re-runs the *old version* rather than
@@ -85,7 +85,7 @@ demo's off/on switch and the whole platform rebuildable from nothing.
 The provider (v0.6.x) **cannot express three settings** — custom start
 commands (worker/beat), the pre-deploy command, and the healthcheck path — but
 the public GraphQL API can, so
-[`scripts/railway-configure.sh`](../../scripts/railway-configure.sh)
+[`deploy/scripts/railway-configure.sh`](../../deploy/scripts/railway-configure.sh)
 (`make configure`, idempotent) applies them after `apply`; the only remaining
 manual step is creating the CD project token (`terraform output manual_steps`).
 The settings survive CD image re-pins, so the hybrid is automated and stable,

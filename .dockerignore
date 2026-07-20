@@ -42,6 +42,10 @@ e2e
 load
 conftest.py
 
+# Deploy + dev tooling — operated on the host/CI, never read by the runtime image
+deploy
+scripts
+
 # Claude / local tooling
 .claude
 .mcp.json
