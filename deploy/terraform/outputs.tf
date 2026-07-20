@@ -19,7 +19,7 @@ output "manual_steps" {
   value       = <<-EOT
     1. Project Settings → Tokens → create a production project token → gh secret set RAILWAY_TOKEN
     2. RAILWAY_TOKEN=<that token> make configure
-       (scripts/railway-configure.sh — sets the deploy settings the provider
+       (deploy/scripts/railway-configure.sh — sets the deploy settings the provider
         can't express: web pre-deploy migrate + /readyz healthcheck,
         worker/beat celery start commands, listener push-dispatch start command)
     3. Set the GitHub repo variable RAILWAY_LISTENER_SERVICE_ID (from

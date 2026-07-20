@@ -24,11 +24,11 @@
 #   RAILWAY_WORKER_SERVICE_ID    in deploy/terraform (needs local state).
 #   RAILWAY_BEAT_SERVICE_ID
 #
-# USAGE: terraform -chdir=deploy/terraform apply && ./scripts/railway-configure.sh
+# USAGE: terraform -chdir=deploy/terraform apply && ./deploy/scripts/railway-configure.sh
 
 set -euo pipefail
 
-TF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../deploy/terraform" && pwd)"
+TF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../terraform" && pwd)"
 
 : "${RAILWAY_TOKEN:?RAILWAY_TOKEN is required}"
 
@@ -47,7 +47,7 @@ fi
 : "${RAILWAY_BEAT_SERVICE_ID:?RAILWAY_BEAT_SERVICE_ID is required}"
 
 # Shared Railway plumbing: RAILWAY_API, AUTH_HEADER (token-kind aware), gql().
-# shellcheck source=scripts/_lib-railway.sh
+# shellcheck source=deploy/scripts/_lib-railway.sh
 . "$(dirname "${BASH_SOURCE[0]}")/_lib-railway.sh"
 
 configure() { # configure <service-id> <ServiceInstanceUpdateInput json> <label>

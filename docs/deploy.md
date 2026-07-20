@@ -8,7 +8,7 @@ whole platform from nothing. Decision rationale lives in
 > Railway's `railway.json`/`railway.toml` config-as-code only applies to
 > services built from a connected repo. These services deploy a **prebuilt
 > image**, so no Railway config file can live here — this document, the deploy
-> script ([`scripts/railway-deploy.sh`](../scripts/railway-deploy.sh)), the
+> script ([`deploy/scripts/railway-deploy.sh`](../deploy/scripts/railway-deploy.sh)), the
 > `deploy` job in
 > [`release-please.yml`](../.github/workflows/release-please.yml), and ADR 0005
 > are the committed source of truth instead.
@@ -97,7 +97,7 @@ Railway does **not** watch GHCR — pushing an image deploys nothing, and
 `railway redeploy` re-runs the previous deployment with its *original* image
 reference. So the release pipeline is explicit
 (`release-please.yml` → `deploy` job → `make deploy VERSION=<x.y.z>` →
-[`scripts/railway-deploy.sh`](../scripts/railway-deploy.sh)):
+[`deploy/scripts/railway-deploy.sh`](../deploy/scripts/railway-deploy.sh)):
 
 1. **Pre-flight**: the script verifies the tag exists on GHCR (anonymous
    manifest check) before pinning anything — a typo'd or unpublished version
@@ -131,7 +131,7 @@ Manual deploy/rollback from anywhere with the token:
 ## Provisioning from scratch (Terraform)
 
 The platform is declared in [`deploy/terraform/`](../deploy/terraform/README.md)
-— project, all five services (the databases are plain image + volume services,
+— project, all six services (the databases are plain image + volume services,
 which is all Railway's templates are), generated secrets, every env var, and
 the public domain.
 
@@ -155,7 +155,7 @@ terraform output github_ci_variables                # → gh variable set …
 
 The three settings neither Terraform nor Railway config-as-code can express
 for image-sourced services *are* expressible via the public GraphQL API, so
-[`scripts/railway-configure.sh`](../scripts/railway-configure.sh)
+[`deploy/scripts/railway-configure.sh`](../deploy/scripts/railway-configure.sh)
 (`make configure`) applies them right after `apply` (they survive CD image
 re-pins; the script is idempotent):
 

@@ -88,10 +88,10 @@ listener: ## Run the outbox push-dispatch listener (LISTEN/NOTIFY — ADR 0007; 
 # === Deploy (M5: Railway — see docs/deploy.md) ===
 
 deploy: ## Deploy VERSION=<x.y.z> to Railway (pins image tags; web gates worker/beat)
-	@./scripts/railway-deploy.sh "$(VERSION)"
+	@./deploy/scripts/railway-deploy.sh "$(VERSION)"
 
 configure: ## Post-`terraform apply` one-shot: set the deploy settings the provider can't express
-	@./scripts/railway-configure.sh
+	@./deploy/scripts/railway-configure.sh
 
 tf-check: ## Terraform gate: fmt + validate the platform module (needs terraform CLI)
 	terraform -chdir=deploy/terraform fmt -check -recursive
