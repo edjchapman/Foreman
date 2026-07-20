@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.8](https://github.com/edjchapman/Foreman/compare/v0.13.7...v0.13.8) (2026-07-20)
+
+
+### Code Refactoring
+
+* consolidate deployment scripts under deploy/ ([#120](https://github.com/edjchapman/Foreman/issues/120)) ([2ae2842](https://github.com/edjchapman/Foreman/commit/2ae2842248029192deae1295c395d9f31f84a73a))
+
 ## [0.13.7](https://github.com/edjchapman/Foreman/compare/v0.13.6...v0.13.7) (2026-07-20)
 
 
