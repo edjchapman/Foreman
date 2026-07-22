@@ -1,0 +1,33 @@
+name: chaos
+
+# Nightly chaos run: SIGKILL the worker mid-job on an isolated compose stack and
+# assert lease-reaper recovery with no lost or duplicated rows (chaos/README.md).
+# Deliberately NOT a PR gate — it needs Docker + real processes and proves a
+# runtime property, not a diff; a failure signals a reliability regression on main.
+
+on:
+  schedule:
+    # Nightly 03:30 UTC — off-peak, and offset from the repo's Monday-09:00 gates.
+    - cron: "30 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # event_name in the group so a scheduled run can never cancel a dispatched one.
+  group: chaos-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  chaos:
+    name: worker-kill recovery
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          python-version: "3.12"
+      - name: Kill the worker mid-job and assert recovery
+        run: make chaos

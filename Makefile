@@ -1,4 +1,4 @@
-.PHONY: help up down clean build image logs migrate makemigrations test e2e load lint fmt typecheck audit ci preflight shell \
+.PHONY: help up down clean build image logs migrate makemigrations test e2e load chaos lint fmt typecheck audit ci preflight shell \
         worker beat relay listener deploy configure tf-check \
         check check-links check-anchors stack-check \
         check-commit-msg check-stale-branches sweep-branches lint-md
@@ -47,6 +47,9 @@ e2e: ## Browser tests against the live demo (Playwright; FOREMAN_E2E_URL retarge
 
 load: ## Load test the pipeline (Locust web UI; FOREMAN_LOAD_URL retargets, needs a live stack)
 	uv run --group load locust -f load/locustfile.py --host $${FOREMAN_LOAD_URL:-http://localhost:8000}
+
+chaos: ## SIGKILL the worker mid-job on an isolated stack; assert lease-reaper recovery (needs Docker)
+	uv run python chaos/chaos_worker_kill.py
 
 lint: ## Lint + format-check (no changes)
 	uv run ruff check .

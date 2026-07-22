@@ -116,6 +116,10 @@ its lease expires (`JOB_LEASE_SECONDS`), then `recover_jobs` reclaims it to `PEN
 `DEAD_LETTER` if attempts are spent). A slow-but-alive worker that resumes after being
 reaped is fenced out by its stale `lease_token` and cannot corrupt the row.
 
+This scenario is executable: `make chaos` SIGKILLs the worker mid-import on an isolated
+compose stack and asserts every job still succeeds with no lost or duplicated rows — see
+[chaos/README.md](../chaos/README.md). CI repeats it nightly (`chaos.yml`, non-blocking).
+
 ### Tunables
 
 Env-overridable; defaults shown. See [ADR 0002](adr/0002-retries-dlq-lease.md) for the

@@ -69,6 +69,9 @@ ignore = ["RUF012"]
 "conftest.py" = ["S101"]
 "jobs/tasks.py" = ["S311"]  # random.uniform is backoff jitter, not crypto
 "scripts/*" = ["S607"]      # dev validators invoke `git` from PATH (portable across OSes)
+# The chaos driver shells out to `docker compose` (fixed argv, PATH lookup) and probes
+# its own local stack over http:// — bandit's subprocess/urlopen audits don't apply.
+"chaos/*" = ["S310", "S603", "S607"]
 
 [tool.mypy]
 python_version = "3.12"
