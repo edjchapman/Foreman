@@ -185,10 +185,17 @@ terraform apply     # back in minutes — then `make configure` and update the
 
 ## Post-deploy smoke checks
 
-Checks 3 and 5 are automated as browser tests: `make e2e` (Playwright against
-the live demo; `FOREMAN_E2E_URL` retargets) covers the demo page, the sample
-import going `SUCCEEDED` over the WebSocket (and asserts no polling fallback),
-the CSV report, and the poison-job `FAILED` path.
+**CD runs the smoke gate automatically after every rollout** (`deploy.yml`):
+first the curl probes — checks 1 and 4 below, via
+`deploy/scripts/smoke-check.sh` — then the browser half as `make e2e`
+(Playwright against the live demo; `FOREMAN_E2E_URL` retargets), which covers
+checks 3 and 5: the demo page, the sample import going `SUCCEEDED` over the
+WebSocket (and asserts no polling fallback), the CSV report, and the poison-job
+`FAILED` path. The rollout has already cut over when the gate runs — a red
+smoke step is the **incident signal**, and rollback stays manual (below). A
+`workflow_dispatch` deploy can set `skip_smoke` for emergencies.
+
+The full checklist (the gate automates 1, 3, 4, and 5; 2 and 6 stay manual):
 
 1. `curl -fsS https://<domain>/healthz` → 200; `…/readyz` → 200 (DB + Redis
    reachable over private networking).
