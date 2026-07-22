@@ -153,6 +153,9 @@ reliability tunables' rationale.
 | `JOB_RETRY_MAX_SECONDS` | 300 | Backoff cap. |
 | `JOB_LEASE_SECONDS` | 120 | Worker lease TTL while `PROCESSING`. |
 | `RECOVER_POLL_SECONDS` | 5 | How often `recover_jobs` runs. |
+| `INGEST_MAX_ROWS` | 10000 | Row cap for every CSV source, inline payloads included. |
+| `REMOTE_SOURCE_MAX_BYTES` | 1048576 | Streamed byte cap on an `https://` source fetch (Content-Length is never trusted). |
+| `REMOTE_SOURCE_TIMEOUT_SECONDS` | 10 | Per-request timeout for `https://` fetches. |
 | `RETENTION_DAYS` | 0 (disabled) | Prune terminal jobs (+ cascaded records/events) and aged DISPATCHED outbox rows after N days. |
 | `RETENTION_BATCH_SIZE` | 1000 | Rows per delete batch while pruning. |
 | `DJANGO_LOG_FORMAT` | `json` | Log output format: `json` or `console`. |

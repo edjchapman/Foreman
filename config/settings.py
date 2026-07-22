@@ -119,6 +119,14 @@ JOB_RETRY_MAX_SECONDS = float(os.environ.get("JOB_RETRY_MAX_SECONDS", "300"))
 JOB_LEASE_SECONDS = float(os.environ.get("JOB_LEASE_SECONDS", "120"))
 JOB_REQUEUE_VISIBILITY_SECONDS = float(os.environ.get("JOB_REQUEUE_VISIBILITY_SECONDS", "60"))
 
+# === Ingestion limits & remote sources (jobs/ingest.py, jobs/sources.py) ===
+# Row cap applies to every source (inline CSV included) — nothing can grow a job's
+# stored errors/result or the bulk insert unboundedly. The remote knobs guard the
+# https:// fetch on a public, unauthenticated API: streamed byte cap + timeout.
+INGEST_MAX_ROWS = int(os.environ.get("INGEST_MAX_ROWS", "10000"))
+REMOTE_SOURCE_MAX_BYTES = int(os.environ.get("REMOTE_SOURCE_MAX_BYTES", str(1024 * 1024)))
+REMOTE_SOURCE_TIMEOUT_SECONDS = float(os.environ.get("REMOTE_SOURCE_TIMEOUT_SECONDS", "10"))
+
 # Demo-only: the `fault:heal-after:<n>` window the demo page's dead-letter button uses.
 # Sized above the automatic-retry span (~JOB_MAX_ATTEMPTS attempts x recover-poll) so the
 # first cycle dead-letters before a redrive can heal it. See jobs/faults.py.
