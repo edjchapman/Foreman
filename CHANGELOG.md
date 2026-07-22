@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.15.0](https://github.com/edjchapman/Foreman/compare/v0.14.0...v0.15.0) (2026-07-22)
+
+
+### Features
+
+* committed alert rules, SLOs, and a local observability profile ([#126](https://github.com/edjchapman/Foreman/issues/126)) ([88fcc3d](https://github.com/edjchapman/Foreman/commit/88fcc3d53d7c534b6c3fe8471bfd7da8f06be025))
+* env-gated retention pruning for terminal jobs and outbox history ([#127](https://github.com/edjchapman/Foreman/issues/127)) ([1f4095a](https://github.com/edjchapman/Foreman/commit/1f4095a0b7d8afaf8946adcbc73eb24cff96a312))
+* https:// CSV sources with SSRF guard, size/timeout caps, and a row cap ([#128](https://github.com/edjchapman/Foreman/issues/128)) ([81ae3fa](https://github.com/edjchapman/Foreman/commit/81ae3faa497e73a656cc232b92f4160e5638536c))
+
 ## [0.14.0](https://github.com/edjchapman/Foreman/compare/v0.13.8...v0.14.0) (2026-07-22)
 
 
