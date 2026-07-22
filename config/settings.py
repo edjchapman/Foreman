@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 
 import dj_database_url
+from celery.schedules import crontab
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -84,8 +85,9 @@ CELERY_WORKER_PREFETCH_MULTIPLIER = int(os.environ.get("CELERY_WORKER_PREFETCH_M
 CELERY_BROKER_TRANSPORT_OPTIONS = {
     "visibility_timeout": int(os.environ.get("CELERY_VISIBILITY_TIMEOUT", "3600")),
 }
-# Beat drives two pollers: the outbox relay (publish PENDING events) and the M3
-# recovery scan (re-dispatch jobs whose retry backoff has elapsed).
+# Beat drives two pollers — the outbox relay (publish PENDING events) and the M3
+# recovery scan (re-dispatch jobs whose retry backoff has elapsed) — plus the daily
+# retention prune (a no-op unless RETENTION_DAYS is set; see jobs/retention.py).
 CELERY_BEAT_SCHEDULE = {
     "dispatch-outbox": {
         "task": "jobs.dispatch_outbox",
@@ -95,7 +97,18 @@ CELERY_BEAT_SCHEDULE = {
         "task": "jobs.recover_jobs",
         "schedule": float(os.environ.get("RECOVER_POLL_SECONDS", "5.0")),
     },
+    "prune-retention": {
+        "task": "jobs.prune_expired",
+        "schedule": crontab(hour=3, minute=17),  # off-peak daily
+    },
 }
+
+# === Retention (env-gated; 0 = keep everything forever) ===
+# Terminal jobs (and, via CASCADE, their PropertyRecords and OutboxEvents) older than
+# RETENTION_DAYS are pruned daily. The DB-derived terminal counters shrink at the prune
+# horizon — alert on increase()/rate(), never absolute totals (ADR 0006).
+RETENTION_DAYS = int(os.environ.get("RETENTION_DAYS", "0"))
+RETENTION_BATCH_SIZE = int(os.environ.get("RETENTION_BATCH_SIZE", "1000"))
 
 # === M3 reliability: retries, backoff, dead-letter, lease ===
 # Worker-owned retry/lease state lives in Postgres (Job.attempts / available_at /

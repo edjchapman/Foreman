@@ -33,6 +33,11 @@ from .ingest import IngestError, load_csv_text, parse_rows
 from .models import Job, OutboxEvent, PropertyRecord
 from .realtime import notify_job
 
+# Celery autodiscovery imports only `<app>.tasks` — re-export the retention task
+# so it registers with the worker (jobs/retention.py is its own module to keep
+# this file under the size limit).
+from .retention import prune_expired  # noqa: F401
+
 logger = logging.getLogger(__name__)
 
 OUTBOX_BATCH_SIZE = 100

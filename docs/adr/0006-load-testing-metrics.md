@@ -72,11 +72,12 @@ itself — the evidence is scraped server-side.
   gives throughput and an error ratio; `histogram_quantile(0.95, …)` gives p95
   latency — all without multiprocess mode or a Pushgateway.
 - **Counter monotonicity has a documented boundary.** `redrive` returns a
-  `DEAD_LETTER` job to `PENDING`, and any future retention pruning deletes
-  terminal rows — either can make a `*_total` series *decrease*. Prometheus
-  `rate()` tolerates counter resets, so the impact is a minor undercount across a
-  reset, not a wrong graph. Consistent with the project's habit of documenting a
-  boundary rather than over-engineering it away.
+  `DEAD_LETTER` job to `PENDING`, and retention pruning deletes terminal rows —
+  either can make a `*_total` series *decrease*. Prometheus `rate()` tolerates
+  counter resets, so the impact is a minor undercount across a reset, not a wrong
+  graph. Consistent with the project's habit of documenting a boundary rather
+  than over-engineering it away. *(Update 2026-07: pruning is now real —
+  `jobs.prune_expired`, env-gated via `RETENTION_DAYS`, default off.)*
 - **Scrape cost grows by two histogram queries.** Each is a single aggregate over
   jobs with both timestamps set; add a partial index on `(finished_at)` if a
   large terminal-row population ever makes the scrape measurable.
