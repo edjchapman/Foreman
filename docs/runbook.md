@@ -8,7 +8,8 @@ read the logs, and what to do when something goes wrong. The *why* lives in the
 
 - **web** — the DRF API + WebSocket stream; serves `/healthz`, `/readyz`, `/metrics`, and `ws/jobs/<id>/`.
 - **worker** — Celery worker running `process_job` (the CSV import and terminal state).
-- **beat** — Celery Beat; drives two pollers, `dispatch_outbox` (~1s) and `recover_jobs` (~5s).
+- **beat** — Celery Beat; drives two pollers, `dispatch_outbox` (~1s) and `recover_jobs` (~5s),
+  plus the daily retention prune (`jobs.prune_expired` — a no-op unless `RETENTION_DAYS` is set).
 
 All three share one image and one Postgres + Redis. Job state lives in Postgres, not the
 broker, so it stays queryable and survives a broker restart.
@@ -132,8 +133,15 @@ reliability tunables' rationale.
 | `JOB_RETRY_MAX_SECONDS` | 300 | Backoff cap. |
 | `JOB_LEASE_SECONDS` | 120 | Worker lease TTL while `PROCESSING`. |
 | `RECOVER_POLL_SECONDS` | 5 | How often `recover_jobs` runs. |
+| `RETENTION_DAYS` | 0 (disabled) | Prune terminal jobs (+ cascaded records/events) and aged DISPATCHED outbox rows after N days. |
+| `RETENTION_BATCH_SIZE` | 1000 | Rows per delete batch while pruning. |
 | `DJANGO_LOG_FORMAT` | `json` | Log output format: `json` or `console`. |
 | `CHANNELS_REDIS_URL` | `REDIS_URL` | Redis for the WebSocket channel layer. |
+
+With retention enabled, the DB-derived `foreman_jobs_processed_total` counters shrink at
+the prune horizon — alert on `increase()`/`rate()`, never absolute totals (the documented
+monotonicity boundary in [ADR 0006](adr/0006-load-testing-metrics.md)). Pruning logs one
+`retention.pruned` event with the deleted counts.
 
 ## Production configuration
 
