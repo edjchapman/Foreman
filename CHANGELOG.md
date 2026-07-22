@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.1](https://github.com/edjchapman/Foreman/compare/v0.15.0...v0.15.1) (2026-07-22)
+
+
+### Bug Fixes
+
+* **ci:** fall back to the live URL when FOREMAN_E2E_URL is empty ([#130](https://github.com/edjchapman/Foreman/issues/130)) ([cfcb329](https://github.com/edjchapman/Foreman/commit/cfcb329aa1a2b8061ef4543a7b2451bb2fecd1ed))
+
 ## [0.15.0](https://github.com/edjchapman/Foreman/compare/v0.14.0...v0.15.0) (2026-07-22)
 
 
