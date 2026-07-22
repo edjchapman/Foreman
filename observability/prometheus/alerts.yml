@@ -1,0 +1,81 @@
+# Foreman alert + SLO rules — the committed source of truth for "what pages".
+# The runbook's metrics table documents the *meaning*; these rules make the
+# thresholds executable. Loaded by the local observability profile
+# (`make observe`); portable to any Prometheus pointed at /metrics.
+#
+# Counter-derived signals use increase()/rate(), never absolute totals: the
+# counters are DB-derived (ADR 0006), so retention pruning may one day shrink
+# them — growth-based expressions stay correct across resets.
+
+groups:
+  - name: foreman-alerts
+    rules:
+      - alert: ForemanDeadLetterGrowth
+        # Counter-based (not the foreman_jobs gauge): fires on NEW dead-letters,
+        # and an operator redrive clears it naturally at the next window.
+        expr: increase(foreman_jobs_processed_total{status="DEAD_LETTER"}[15m]) > 0
+        labels:
+          severity: page
+        annotations:
+          summary: "Jobs are dead-lettering — attempts exhausted on real work"
+          runbook: "https://github.com/edjchapman/Foreman/blob/main/docs/runbook.md#redrive-a-dead-lettered-job"
+
+      - alert: ForemanOutboxDispatchLagging
+        expr: foreman_outbox_oldest_pending_age_seconds > 30
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: "Outbox relay is behind — Beat poll (and listener, if deployed) not dispatching"
+          runbook: "https://github.com/edjchapman/Foreman/blob/main/docs/runbook.md#the-relay-is-behind"
+
+      - alert: ForemanProcessingStuck
+        expr: foreman_jobs_processing_oldest_age_seconds > 300
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: "In-flight job far older than the lease — the reaper (recover_jobs) is not running"
+          runbook: "https://github.com/edjchapman/Foreman/blob/main/docs/runbook.md#a-worker-crashed-mid-job"
+
+      - alert: ForemanRetryBacklogGrowing
+        expr: foreman_jobs_retry_scheduled > 10
+        for: 10m
+        labels:
+          severity: warn
+        annotations:
+          summary: "Sustained retry backlog — a dependency is likely failing transiently"
+          runbook: "https://github.com/edjchapman/Foreman/blob/main/docs/runbook.md#metrics"
+
+  - name: foreman-slo
+    rules:
+      # Recording rules first: the SLO signals, computable on any dashboard.
+      - record: foreman:job_processing_seconds:p95
+        expr: histogram_quantile(0.95, rate(foreman_job_processing_seconds_bucket[5m]))
+      - record: foreman:job_queue_wait_seconds:p95
+        expr: histogram_quantile(0.95, rate(foreman_job_queue_wait_seconds_bucket[5m]))
+      - record: foreman:jobs_error_ratio:15m
+        # FAILED is poison input (expected on the demo), DEAD_LETTER is real failure —
+        # both count against the ratio; clamp_min avoids 0/0 when idle.
+        expr: >
+          sum(increase(foreman_jobs_processed_total{status=~"FAILED|DEAD_LETTER"}[15m]))
+          /
+          clamp_min(sum(increase(foreman_jobs_processed_total[15m])), 1)
+
+      - alert: ForemanProcessingLatencySLOBreach
+        expr: foreman:job_processing_seconds:p95 > 5
+        for: 10m
+        labels:
+          severity: warn
+        annotations:
+          summary: "Processing p95 above the 5s SLO for 10m"
+          runbook: "https://github.com/edjchapman/Foreman/blob/main/docs/runbook.md#slos--alerts"
+
+      - alert: ForemanQueueWaitSLOBreach
+        expr: foreman:job_queue_wait_seconds:p95 > 30
+        for: 10m
+        labels:
+          severity: warn
+        annotations:
+          summary: "Queue-wait p95 above the 30s SLO for 10m — workers under-provisioned or dispatch lagging"
+          runbook: "https://github.com/edjchapman/Foreman/blob/main/docs/runbook.md#slos--alerts"

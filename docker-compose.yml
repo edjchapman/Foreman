@@ -5,7 +5,9 @@ x-app-env: &app-env
   REDIS_URL: redis://redis:6379/0
   DJANGO_DEBUG: "true"
   DJANGO_SECRET_KEY: dev-insecure
-  DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,0.0.0.0
+  # `web` included so in-network scrapers (the observability profile's Prometheus
+  # targets web:8000) pass Django's Host validation.
+  DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,0.0.0.0,web
   # Distributed tracing on for local dev — each process exports to the Jaeger service
   # below (view traces at http://localhost:16686). http:// scheme selects the insecure
   # gRPC channel. Prod sets these per-service via Terraform. See ADR 0008.
@@ -152,6 +154,35 @@ services:
     volumes:
       - ./:/app
       - /app/.venv  # anonymous volume: keep the image's venv, not a shadowing host .venv
+
+  # === Observability profile (opt-in: `make observe`) ===
+  # Prometheus evaluates the committed alert/SLO rules against web's /metrics;
+  # Grafana auto-provisions the dashboard. Profile-gated so `make up` is unchanged.
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    profiles: ["observability"]
+    volumes:
+      - ./observability/prometheus:/etc/prometheus:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      web:
+        condition: service_healthy
+
+  grafana:
+    image: grafana/grafana:12.0.0
+    profiles: ["observability"]
+    environment:
+      # Local-only convenience: no login wall in front of a localhost dashboard.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
 
 volumes:
   pgdata:

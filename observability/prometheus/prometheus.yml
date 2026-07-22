@@ -1,0 +1,16 @@
+# Local Prometheus for the observability profile (`make observe`).
+# Scrapes web's DB-derived /metrics (ADR 0006) and evaluates the committed
+# alert + SLO rules in alerts.yml — the executable form of the runbook's
+# "watch for" column.
+
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+scrape_configs:
+  - job_name: foreman
+    static_configs:
+      - targets: ["web:8000"]

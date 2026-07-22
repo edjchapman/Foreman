@@ -86,3 +86,6 @@ itself — the evidence is scraped server-side.
   shipped Grafana dashboard / Alertmanager rules built on these series. OpenTelemetry
   traces spanning API → outbox → worker → realtime shipped in
   [ADR 0008](0008-opentelemetry-tracing.md).
+  *Update (2026-07): the dashboard + alert/SLO rules shipped as the committed
+  `observability/` compose profile (`make observe`); see the runbook's
+  [SLOs & alerts](../runbook.md#slos--alerts).*
