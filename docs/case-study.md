@@ -243,9 +243,10 @@ realtime — proven by a hermetic test that asserts a shared `trace_id` and pare
 
 ## What I'd build next
 
-WebSocket metrics and per-connection auth; remote CSV sources (`s3://`, `https://`)
-behind the existing ingest seam; and relaxing the now-fallback Beat poll to cut idle
-DB load.
+WebSocket metrics and per-connection auth; `s3://` CSV sources behind the same ingest
+seam that now serves `https://` (shipped with an SSRF guard plus size, timeout, and
+row caps); API keys with per-owner job scoping; and relaxing the now-fallback Beat
+poll to cut idle DB load.
 
 ---
 
