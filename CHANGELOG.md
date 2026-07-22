@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.0](https://github.com/edjchapman/Foreman/compare/v0.13.8...v0.14.0) (2026-07-22)
+
+
+### Features
+
+* chaos harness — worker SIGKILL + lease-reaper recovery proof ([#123](https://github.com/edjchapman/Foreman/issues/123)) ([b8d4664](https://github.com/edjchapman/Foreman/commit/b8d4664bb87cae6c009b779404aae90106673a83))
+
 ## [0.13.8](https://github.com/edjchapman/Foreman/compare/v0.13.7...v0.13.8) (2026-07-20)
 
 
