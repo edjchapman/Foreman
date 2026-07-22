@@ -1,0 +1,9 @@
+# Auto-load the committed dashboard(s) from the mounted directory.
+apiVersion: 1
+
+providers:
+  - name: foreman
+    folder: Foreman
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards

@@ -1,0 +1,102 @@
+{
+  "uid": "foreman",
+  "title": "Foreman — job pipeline",
+  "tags": ["foreman"],
+  "timezone": "browser",
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Throughput (jobs/s by outcome)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "foreman-prom" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum by (status) (rate(foreman_jobs_processed_total[5m]))",
+          "legendFormat": "{{status}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Latency p95 (SLO: processing < 5s, queue wait < 30s)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "foreman-prom" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "foreman:job_processing_seconds:p95",
+          "legendFormat": "processing p95"
+        },
+        {
+          "expr": "foreman:job_queue_wait_seconds:p95",
+          "legendFormat": "queue wait p95"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Jobs by status",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "foreman-prom" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "foreman_jobs",
+          "legendFormat": "{{status}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Outbox backlog (relay health)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "foreman-prom" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "expr": "foreman_outbox_pending",
+          "legendFormat": "pending events"
+        },
+        {
+          "expr": "foreman_outbox_oldest_pending_age_seconds",
+          "legendFormat": "oldest pending age (s)"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Retry backlog + oldest in-flight age",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "foreman-prom" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "expr": "foreman_jobs_retry_scheduled",
+          "legendFormat": "retry scheduled"
+        },
+        {
+          "expr": "foreman_jobs_processing_oldest_age_seconds",
+          "legendFormat": "oldest PROCESSING age (s)"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Failure ratio over 15m (SLO: < 1%)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "foreman-prom" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "max": 1 }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "foreman:jobs_error_ratio:15m",
+          "legendFormat": "FAILED + DEAD_LETTER ratio"
+        }
+      ]
+    }
+  ]
+}

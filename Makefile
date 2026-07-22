@@ -1,4 +1,4 @@
-.PHONY: help up down clean build image logs migrate makemigrations test e2e load chaos lint fmt typecheck audit ci preflight shell \
+.PHONY: help up down clean build image logs observe migrate makemigrations test e2e load chaos lint fmt typecheck audit ci preflight shell \
         worker beat relay listener deploy configure tf-check \
         check check-links check-anchors stack-check \
         check-commit-msg check-stale-branches sweep-branches lint-md
@@ -29,6 +29,9 @@ image: ## Build the production image the release publishes (no push) — release
 
 logs: ## Tail stack logs
 	docker compose logs -f
+
+observe: ## Stack + Prometheus/Grafana (alerts + SLO dashboard: localhost:9090 / localhost:3000)
+	docker compose --profile observability up --build
 
 # === App (host, via uv) ===
 

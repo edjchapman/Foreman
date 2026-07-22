@@ -37,13 +37,33 @@ All gauges, computed from the database at scrape time (prefix `foreman_`):
 | `foreman_jobs_retry_scheduled` | PENDING jobs waiting on backoff. | Sustained growth. | Systemic transient failure (a dependency is down); check `job.retry_scheduled` logs. |
 | `foreman_jobs_processing_oldest_age_seconds` | Age of the oldest in-flight job. | > `JOB_LEASE_SECONDS` and climbing. | The reaper (`recover_jobs`) is not running, or jobs are genuinely stuck. |
 
-Example alert expressions (PromQL):
+These thresholds are not just documentation — they are committed as live
+Prometheus rules; see [SLOs & alerts](#slos--alerts).
 
-```promql
-foreman_jobs{status="DEAD_LETTER"} > 0
-foreman_outbox_oldest_pending_age_seconds > 30
-foreman_jobs_processing_oldest_age_seconds > 300
-```
+## SLOs & alerts
+
+The committed source of truth for "what pages" is
+[`observability/prometheus/alerts.yml`](../observability/prometheus/alerts.yml)
+— alert rules with runbook-link annotations, plus recording rules for the SLO
+signals. Run it locally with `make observe` (the full stack + Prometheus at
+`http://localhost:9090` and Grafana at `http://localhost:3000`, dashboard and
+datasource auto-provisioned, no login). A drift-guard test
+(`jobs/tests/test_alert_rules.py`) fails CI if a rule references a metric that
+`/metrics` no longer exports.
+
+| SLO | Target | Signal (recording rule) |
+|---|---|---|
+| Processing latency | p95 < 5 s | `foreman:job_processing_seconds:p95` |
+| Queue wait | p95 < 30 s | `foreman:job_queue_wait_seconds:p95` |
+| Failure ratio | < 1% over 15 m | `foreman:jobs_error_ratio:15m` |
+| Dead-letter growth | 0 per 15 m | `increase(foreman_jobs_processed_total{status="DEAD_LETTER"}[15m])` |
+
+Alerts: `ForemanDeadLetterGrowth`, `ForemanOutboxDispatchLagging` (> 30 s for
+2 m), `ForemanProcessingStuck` (> 300 s for 5 m), `ForemanRetryBacklogGrowing`,
+and the two SLO-breach alerts. Counter-derived rules deliberately use
+`increase()`/`rate()` rather than absolute totals: the counters are DB-derived
+([ADR 0006](adr/0006-load-testing-metrics.md)), so growth-based expressions
+stay correct if retention pruning ever shrinks the underlying rows.
 
 ## Realtime (WebSockets)
 
