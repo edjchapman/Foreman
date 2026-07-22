@@ -10,7 +10,8 @@ import pytest
 from django.conf import settings
 from django.utils import timezone
 
-from jobs.faults import InjectedFaultError, is_fault_source, load_fault_csv
+from jobs import faults
+from jobs.faults import MAX_SLEEP_SECONDS, InjectedFaultError, is_fault_source, load_fault_csv
 from jobs.models import Job, PropertyRecord
 from jobs.tasks import process_job
 from jobs.tests.factories import JobFactory
@@ -56,6 +57,31 @@ def test_malformed_heal_after_window_is_transient():
         load_fault_csv("fault:heal-after:soon", attempts=1, created_at=NOW)
 
 
+def test_sleep_source_naps_then_heals(monkeypatch):
+    naps: list[float] = []
+    monkeypatch.setattr(faults.time, "sleep", naps.append)
+
+    csv = load_fault_csv("fault:sleep:0.5", attempts=1, created_at=NOW)
+
+    assert naps == [0.5]
+    assert "external_id" in csv  # heals into the real sample CSV
+
+
+def test_sleep_duration_is_capped(monkeypatch):
+    # The API is open, so a huge duration must not hold a worker slot indefinitely.
+    naps: list[float] = []
+    monkeypatch.setattr(faults.time, "sleep", naps.append)
+
+    load_fault_csv("fault:sleep:99999", attempts=1, created_at=NOW)
+
+    assert naps == [MAX_SLEEP_SECONDS]
+
+
+def test_malformed_sleep_duration_is_transient():
+    with pytest.raises(InjectedFaultError):
+        load_fault_csv("fault:sleep:forever", attempts=1, created_at=NOW)
+
+
 # --- Integration: process_job through the fault sources ----------------------------
 
 
@@ -86,6 +112,16 @@ def test_heal_after_job_dead_letters_while_the_window_holds():
 def test_heal_after_job_succeeds_once_the_window_has_passed():
     """The same source imports cleanly once the outage 'heals' — the redrive payoff."""
     job = JobFactory(payload={"source": "fault:heal-after:0"})
+
+    assert process_job(str(job.id)) == "succeeded"
+
+    job.refresh_from_db()
+    assert job.status == Job.Status.SUCCEEDED
+    assert PropertyRecord.objects.filter(job=job).count() == 5
+
+
+def test_sleep_job_imports_after_the_nap():
+    job = JobFactory(payload={"source": "fault:sleep:0"})
 
     assert process_job(str(job.id)) == "succeeded"
 

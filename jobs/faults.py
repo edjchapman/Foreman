@@ -12,6 +12,11 @@ synthetic sources let the demo page drive a job through those states on purpose:
   **DEAD_LETTER** first; a later operator ``redrive`` (once the window has
   passed) then heals it. Models a transient downstream outage that resolves
   before the operator retries.
+- ``fault:sleep:<seconds>`` — naps inside the import window, then succeeds.
+  Exists for the chaos harness (``make chaos``): the nap holds the worker
+  mid-``process_job`` long enough to SIGKILL it deterministically and watch
+  the **lease reaper** recover the job. Capped at ``MAX_SLEEP_SECONDS`` so the
+  open demo API can't hold a worker slot indefinitely.
 
 Both raise a plain :class:`RuntimeError` — a *non*-``IngestError`` — so they flow
 into the worker's *transient* branch (retry, then dead-letter), not the poison
@@ -22,6 +27,7 @@ only place that knows about ``fault:`` sources; nothing else needs to change.
 
 from __future__ import annotations
 
+import time
 from datetime import datetime, timedelta
 
 from django.conf import settings
@@ -31,6 +37,10 @@ from .ingest import load_csv_text
 
 FAULT_PREFIX = "fault:"
 HEAL_AFTER_PREFIX = "fault:heal-after:"
+SLEEP_PREFIX = "fault:sleep:"
+
+# The API is open (demo), so bound how long one sleep source can hold a worker slot.
+MAX_SLEEP_SECONDS = 30.0
 
 # The CSV a healed fault job imports, so success is indistinguishable from a real import.
 _HEALED_PAYLOAD = {"source": "sample:properties.csv"}
@@ -59,17 +69,21 @@ def load_fault_csv(source: str, *, attempts: int, created_at: datetime) -> str:
         return load_csv_text(_HEALED_PAYLOAD)
 
     if source.startswith(HEAL_AFTER_PREFIX):
-        window = _parse_window(source)
+        window = _parse_seconds(source, HEAL_AFTER_PREFIX)
         if timezone.now() < created_at + timedelta(seconds=window):
             raise InjectedFaultError(f"simulated outage — heals {window:g}s after submission")
+        return load_csv_text(_HEALED_PAYLOAD)
+
+    if source.startswith(SLEEP_PREFIX):
+        time.sleep(min(_parse_seconds(source, SLEEP_PREFIX), MAX_SLEEP_SECONDS))
         return load_csv_text(_HEALED_PAYLOAD)
 
     raise InjectedFaultError(f"unknown fault source: {source!r}")
 
 
-def _parse_window(source: str) -> float:
-    raw = source.removeprefix(HEAL_AFTER_PREFIX)
+def _parse_seconds(source: str, prefix: str) -> float:
+    raw = source.removeprefix(prefix)
     try:
         return float(raw)
     except ValueError as exc:
-        raise InjectedFaultError(f"invalid heal-after window: {raw!r}") from exc
+        raise InjectedFaultError(f"invalid fault duration: {raw!r}") from exc

@@ -1,0 +1,41 @@
+# Chaos-run overrides, layered on docker-compose.yml by chaos/chaos_worker_kill.py
+# (project name `foreman-chaos`, so containers/volumes never touch the dev stack).
+#
+# Two concerns:
+# - Shrink the recovery clocks so a SIGKILLed worker's job is reclaimed in seconds
+#   (prod defaults: 120s lease / 5s reaper poll — correct, but a slow demo).
+#   The driver's fault:sleep:8 nap must stay UNDER the 10s lease, so a healthy
+#   (unkilled) nap never outlives its own lease.
+# - Unbind the host ports the harness doesn't need (db/redis/jaeger) so a chaos run
+#   can't collide with a dev stack or anything else on the host; only web:8000 —
+#   the driver's API endpoint — stays published.
+
+x-chaos-env: &chaos-env
+  JOB_LEASE_SECONDS: "10"
+  RECOVER_POLL_SECONDS: "1"
+  JOB_RETRY_BASE_SECONDS: "1"
+  JOB_REQUEUE_VISIBILITY_SECONDS: "15"
+  OTEL_ENABLED: "false"
+
+services:
+  db:
+    ports: !reset []
+  redis:
+    ports: !reset []
+  jaeger:
+    ports: !reset []
+  migrate:
+    environment:
+      <<: *chaos-env
+  web:
+    environment:
+      <<: *chaos-env
+  worker:
+    environment:
+      <<: *chaos-env
+  beat:
+    environment:
+      <<: *chaos-env
+  listener:
+    environment:
+      <<: *chaos-env
