@@ -12,7 +12,9 @@ import re
 import pytest
 from playwright.sync_api import Page, Request, WebSocket, expect
 
-BASE_URL = os.environ.get("FOREMAN_E2E_URL", "https://foreman-demo.up.railway.app").rstrip("/")
+# `or` (not a get() default): CI sets the env var from an optional repo variable,
+# so it can be present-but-empty — an empty URL must still fall back to the demo.
+BASE_URL = (os.environ.get("FOREMAN_E2E_URL") or "https://foreman-demo.up.railway.app").rstrip("/")
 # Worker latency + a cold platform: generous, but a hung pipeline still fails.
 STATUS_TIMEOUT_MS = 90_000
 
