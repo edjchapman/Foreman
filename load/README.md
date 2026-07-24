@@ -17,7 +17,7 @@ a live platform (web + Redis + Celery workers), not just a database.
 make load                                            # opens the Locust web UI at :8089
 
 # Headless, retargeting the deployed platform at a fixed rate for a fixed time:
-FOREMAN_LOAD_URL=https://foreman-demo.up.railway.app \
+FOREMAN_LOAD_URL=https://foreman.edwardchapman.co.uk \
   uv run --group load locust -f load/locustfile.py \
   --headless -u 20 -r 5 -t 2m
 ```

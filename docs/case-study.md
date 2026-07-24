@@ -4,7 +4,7 @@ The engineering story behind foreman: how a deliberately small feature — impor
 a property CSV, hand back a report — earns **at-least-once delivery,
 exactly-once *effect*, failure isolation, and autonomous crash recovery**, and
 how each of those claims is tested, observed, and shipped. The system is live:
-[**foreman-demo.up.railway.app**](https://foreman-demo.up.railway.app).
+[**foreman.edwardchapman.co.uk**](https://foreman.edwardchapman.co.uk).
 
 Every decision below was recorded as an [ADR](adr/README.md) at the moment it
 was made; this document is the connective tissue.
@@ -251,5 +251,5 @@ poll to cut idle DB load.
 ---
 
 *Built by [Ed Chapman](https://github.com/edjchapman). The pipeline in one
-sitting: [live demo](https://foreman-demo.up.railway.app) · [ADR index](adr/README.md) ·
+sitting: [live demo](https://foreman.edwardchapman.co.uk) · [ADR index](adr/README.md) ·
 [runbook](runbook.md) · [CI/CD pipeline](ci.md) · [load testing](load-testing.md).*

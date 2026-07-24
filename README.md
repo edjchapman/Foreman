@@ -7,7 +7,7 @@
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](pyproject.toml)
 [![License: MIT](https://img.shields.io/github/license/edjchapman/foreman)](LICENSE)
 
-**An event-driven job pipeline you can watch** — submit an import and follow it live over a WebSocket as it moves through a **transactional outbox**, an **idempotent worker**, **retries**, and a **dead-letter queue**. It's a portfolio project demonstrating backend **reliability engineering beyond CRUD**, and it's **live**: [**foreman-demo.up.railway.app**](https://foreman-demo.up.railway.app) — the full engineering narrative is the [**case study**](docs/case-study.md).
+**An event-driven job pipeline you can watch** — submit an import and follow it live over a WebSocket as it moves through a **transactional outbox**, an **idempotent worker**, **retries**, and a **dead-letter queue**. It's a portfolio project demonstrating backend **reliability engineering beyond CRUD**, and it's **live**: [**foreman.edwardchapman.co.uk**](https://foreman.edwardchapman.co.uk) — the full engineering narrative is the [**case study**](docs/case-study.md).
 
 > Part of my portfolio — project page at **[edwardchapman.co.uk/projects/foreman](https://edwardchapman.co.uk/projects/foreman)**.
 
@@ -26,7 +26,7 @@
 
 ## Live demo
 
-[Open the demo](https://foreman-demo.up.railway.app) and drive the pipeline yourself — each scenario streams **live over a WebSocket** (no polling — the [E2E suite](e2e/test_demo_page.py) asserts it), with the queue's own metrics ticking beside it:
+[Open the demo](https://foreman.edwardchapman.co.uk) and drive the pipeline yourself — each scenario streams **live over a WebSocket** (no polling — the [E2E suite](e2e/test_demo_page.py) asserts it), with the queue's own metrics ticking beside it:
 
 - **Import sample CSV** — the happy path to `SUCCEEDED` + a downloadable report.
 - **Inject a flaky job** — a transient failure that retries with backoff and recovers on its own.
@@ -72,7 +72,7 @@ The **outbox** decouples submission from dispatch, the **relay** is a dumb publi
 | Worker crash | **Lease + reaper recovery** | An expired lease is reclaimed; a fencing token discards a resumed zombie's stale write. |
 | Concurrency | **Non-blocking claims** | `SELECT … FOR UPDATE SKIP LOCKED` (PostgreSQL). |
 
-Failure modes and the crash-window analysis are in [ADR 0002](docs/adr/0002-retries-dlq-lease.md); the [demo page](https://foreman-demo.up.railway.app) drives every one of these states on purpose — a flaky import **retrying with backoff** (the attempt counter climbing) until it **recovers to `SUCCEEDED`**, or exhausting its retries into `DEAD_LETTER` with an operator **Redrive** that heals it — each streamed live over the WebSocket.
+Failure modes and the crash-window analysis are in [ADR 0002](docs/adr/0002-retries-dlq-lease.md); the [demo page](https://foreman.edwardchapman.co.uk) drives every one of these states on purpose — a flaky import **retrying with backoff** (the attempt counter climbing) until it **recovers to `SUCCEEDED`**, or exhausting its retries into `DEAD_LETTER` with an operator **Redrive** that heals it — each streamed live over the WebSocket.
 
 ## Proven under load
 
