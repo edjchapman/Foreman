@@ -121,11 +121,22 @@ resource "railway_variable_collection" "redis" {
 }
 
 # --- App services (one image, three processes) ------------------------------
+#
+# Terraform sets source_image only at bootstrap (var.app_version); after that
+# CD owns the tag (release-please → railway-deploy.sh pins semver via the
+# GraphQL API), so every app service ignores source_image drift. Without this,
+# any later `terraform apply` silently re-pins all services to var.app_version
+# (default "latest") and redeploys the whole platform — and the forced image
+# update also plans the optional+computed `regions` attr to null.
 
 resource "railway_service" "web" {
   name         = "web"
   project_id   = railway_project.foreman.id
   source_image = local.app_image
+
+  lifecycle {
+    ignore_changes = [source_image]
+  }
 }
 
 resource "railway_service_domain" "web" {
@@ -156,6 +167,10 @@ resource "railway_service" "worker" {
   name         = "worker"
   project_id   = railway_project.foreman.id
   source_image = local.app_image
+
+  lifecycle {
+    ignore_changes = [source_image]
+  }
 }
 
 resource "railway_variable_collection" "worker" {
@@ -168,6 +183,10 @@ resource "railway_service" "beat" {
   name         = "beat"
   project_id   = railway_project.foreman.id
   source_image = local.app_image
+
+  lifecycle {
+    ignore_changes = [source_image]
+  }
 }
 
 resource "railway_variable_collection" "beat" {
@@ -183,6 +202,10 @@ resource "railway_service" "listener" {
   name         = "listener"
   project_id   = railway_project.foreman.id
   source_image = local.app_image
+
+  lifecycle {
+    ignore_changes = [source_image]
+  }
 }
 
 resource "railway_variable_collection" "listener" {

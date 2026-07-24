@@ -179,7 +179,9 @@ Finally create the **project token** (Project Settings → Tokens, `production`)
 → GitHub secret `RAILWAY_TOKEN`, and set the IDs from
 `github_ci_variables` as repo variables. Terraform bootstraps against
 `:latest` (or `-var app_version=<x.y.z>`); every release afterwards pins
-semver via CI.
+semver via CI, and the services carry `ignore_changes = [source_image]` so a
+later `terraform apply` never fights CD's pin (it would otherwise re-pin
+everything to `var.app_version` and redeploy the platform).
 
 ## Switching the demo off (and back on)
 
