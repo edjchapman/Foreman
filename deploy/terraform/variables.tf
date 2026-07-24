@@ -29,6 +29,17 @@ variable "otel_sampler_ratio" {
   default     = "1.0"
 }
 
+variable "custom_domain" {
+  description = "Custom domain for the web service (CNAME in your DNS, pointed at the dns_record_value output). Empty disables it — the *.up.railway.app domain always works."
+  type        = string
+  default     = "foreman.edwardchapman.co.uk"
+
+  validation {
+    condition     = var.custom_domain == "" || can(regex("^[a-z0-9][a-z0-9.-]*\\.[a-z]{2,}$", var.custom_domain))
+    error_message = "custom_domain must be empty or a bare hostname like \"foreman.example.com\" (no scheme, no trailing dot)."
+  }
+}
+
 variable "web_subdomain" {
   description = "Subdomain for the public *.up.railway.app domain on the web service."
   type        = string

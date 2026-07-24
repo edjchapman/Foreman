@@ -1,6 +1,16 @@
 output "public_url" {
   description = "The live demo URL."
-  value       = "https://${railway_service_domain.web.domain}"
+  value       = var.custom_domain != "" ? "https://${var.custom_domain}" : "https://${railway_service_domain.web.domain}"
+}
+
+output "custom_domain_dns" {
+  description = "DNS records to create for the custom domain (CNAME host_label -> dns_record_value; verification record only if Railway asks for one)."
+  value = var.custom_domain == "" ? null : {
+    host_label                = railway_custom_domain.web[0].host_label
+    dns_record_value          = railway_custom_domain.web[0].dns_record_value
+    verification_host_label   = railway_custom_domain.web[0].verification_host_label
+    verification_record_value = railway_custom_domain.web[0].verification_record_value
+  }
 }
 
 output "github_ci_variables" {

@@ -5,7 +5,7 @@ The README has the system-level [flowchart](../README.md#architecture); this pag
 adds the three views that make the *reliability* behaviour legible: the job state
 machine, the happy-path message flow, and the crash-recovery race.
 
-The [demo page](https://foreman-demo.up.railway.app) lets you drive the pipeline
+The [demo page](https://foreman.edwardchapman.co.uk) lets you drive the pipeline
 and watch a job move through it live — here a sample import has reached
 `SUCCEEDED`, with the queue's own metrics ticking above:
 

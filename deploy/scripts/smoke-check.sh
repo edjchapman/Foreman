@@ -5,7 +5,7 @@
 # FOREMAN_E2E_URL retargets; defaults to the live demo.
 set -euo pipefail
 
-BASE_URL="${FOREMAN_E2E_URL:-https://foreman-demo.up.railway.app}"
+BASE_URL="${FOREMAN_E2E_URL:-https://foreman.edwardchapman.co.uk}"
 BASE_URL="${BASE_URL%/}"
 
 echo "smoke: probing ${BASE_URL}"

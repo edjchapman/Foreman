@@ -133,7 +133,9 @@ Manual deploy/rollback from anywhere with the token:
 The platform is declared in [`deploy/terraform/`](../deploy/terraform/README.md)
 — project, all six services (the databases are plain image + volume services,
 which is all Railway's templates are), generated secrets, every env var, and
-the public domain.
+both domains — the generated `*.up.railway.app` one and the custom
+`foreman.edwardchapman.co.uk` (`railway_custom_domain`; both stay live, and
+Django's `ALLOWED_HOSTS`/CSRF origins are derived from the same variables).
 
 Manual first (account owner):
 
@@ -151,7 +153,14 @@ cd deploy/terraform
 terraform init && terraform apply
 RAILWAY_TOKEN_KIND=account make -C ../.. configure  # provider-gap settings, see below
 terraform output github_ci_variables                # → gh variable set …
+terraform output custom_domain_dns                  # → DNS records, next step
 ```
+
+The custom domain needs two records in the `edwardchapman.co.uk` zone
+(Cloudflare), from the `custom_domain_dns` output: a **CNAME**
+(`foreman` → the `dns_record_value`) and the `railway-verify` **TXT** record.
+Keep the CNAME **DNS-only** (grey cloud) so Railway's Let's Encrypt issuance
+sees its own edge; Railway verifies and issues the cert within minutes.
 
 The three settings neither Terraform nor Railway config-as-code can express
 for image-sourced services *are* expressible via the public GraphQL API, so

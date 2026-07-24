@@ -42,8 +42,8 @@ locals {
     # gate can never pass (daphne listens on the image's fixed 8000).
     { name = "PORT", value = "8000" },
     # Also gates the WebSocket Origin check (AllowedHostsOriginValidator).
-    { name = "DJANGO_ALLOWED_HOSTS", value = "${railway_service_domain.web.domain},healthcheck.railway.app" },
-    { name = "DJANGO_CSRF_TRUSTED_ORIGINS", value = "https://${railway_service_domain.web.domain}" },
+    { name = "DJANGO_ALLOWED_HOSTS", value = join(",", compact([railway_service_domain.web.domain, "healthcheck.railway.app", var.custom_domain])) },
+    { name = "DJANGO_CSRF_TRUSTED_ORIGINS", value = join(",", compact(["https://${railway_service_domain.web.domain}", var.custom_domain != "" ? "https://${var.custom_domain}" : ""])) },
     { name = "DJANGO_SECURE_SSL_REDIRECT", value = "true" },
     { name = "DJANGO_SECURE_COOKIES", value = "true" },
     { name = "DJANGO_SECURE_HSTS_SECONDS", value = "31536000" },
@@ -130,6 +130,18 @@ resource "railway_service" "web" {
 
 resource "railway_service_domain" "web" {
   subdomain      = var.web_subdomain
+  service_id     = railway_service.web.id
+  environment_id = railway_project.foreman.default_environment.id
+}
+
+# The *.up.railway.app domain above stays live alongside this one (old links,
+# healthcheck Host header). Railway verifies ownership and issues the TLS cert
+# once the CNAME in outputs.custom_domain_dns exists — keep the Cloudflare
+# record DNS-only (grey cloud) so Let's Encrypt sees Railway's edge directly.
+resource "railway_custom_domain" "web" {
+  count = var.custom_domain != "" ? 1 : 0
+
+  domain         = var.custom_domain
   service_id     = railway_service.web.id
   environment_id = railway_project.foreman.default_environment.id
 }

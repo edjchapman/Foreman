@@ -1,6 +1,6 @@
 # CI/CD pipeline
 
-How a change travels from PR to the [live platform](https://foreman-demo.up.railway.app).
+How a change travels from PR to the [live platform](https://foreman.edwardchapman.co.uk).
 This is the overview; the deploy half (topology, provisioning, rollback) is
 detailed in [deploy.md](deploy.md) and decided in
 [ADR 0005](adr/0005-deployment-platform.md).

@@ -20,7 +20,7 @@ make beat        # outbox relay + recovery scheduler
 make load
 
 # Headless against the deployed platform, fixed rate and duration:
-FOREMAN_LOAD_URL=https://foreman-demo.up.railway.app \
+FOREMAN_LOAD_URL=https://foreman.edwardchapman.co.uk \
   uv run --group load locust -f load/locustfile.py --headless -u 20 -r 5 -t 2m
 ```
 
