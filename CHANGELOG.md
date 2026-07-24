@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.16.0](https://github.com/edjchapman/Foreman/compare/v0.15.1...v0.16.0) (2026-07-24)
+
+
+### Features
+
+* **deploy:** serve the demo at foreman.edwardchapman.co.uk ([#132](https://github.com/edjchapman/Foreman/issues/132)) ([7add0b9](https://github.com/edjchapman/Foreman/commit/7add0b916bad2c5ea1b73328ec7869577cf8f916))
+
+
+### Bug Fixes
+
+* **deploy:** stop terraform re-pinning CD-managed image tags ([#134](https://github.com/edjchapman/Foreman/issues/134)) ([0f101b5](https://github.com/edjchapman/Foreman/commit/0f101b5e6c4bc43da6ad38d7c08d3e1c25fcf4bc))
+
 ## [0.15.1](https://github.com/edjchapman/Foreman/compare/v0.15.0...v0.15.1) (2026-07-22)
 
 
