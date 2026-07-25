@@ -51,10 +51,11 @@ fi
 . "$(dirname "${BASH_SOURCE[0]}")/_lib-railway.sh"
 
 configure() { # configure <service-id> <ServiceInstanceUpdateInput json> <label>
-  gql "$(jq -n --arg s "$1" --arg e "$RAILWAY_ENVIRONMENT_ID" --argjson in "$2" '{
-    query: "mutation($s:String!,$e:String!,$in:ServiceInstanceUpdateInput!){serviceInstanceUpdate(serviceId:$s,environmentId:$e,input:$in)}",
-    variables: {s: $s, e: $e, in: $in}
-  }')" >/dev/null
+  # Query in a variable + single-line jq program: macOS /bin/bash 3.2 mis-parses
+  # multi-line single-quoted strings inside "$(...)" (brace expansion mangles the
+  # GraphQL braces → HTTP 400). Same rule in railway-deploy.sh.
+  local q='mutation($s:String!,$e:String!,$in:ServiceInstanceUpdateInput!){serviceInstanceUpdate(serviceId:$s,environmentId:$e,input:$in)}'
+  gql "$(jq -n --arg q "$q" --arg s "$1" --arg e "$RAILWAY_ENVIRONMENT_ID" --argjson in "$2" '{query:$q,variables:{s:$s,e:$e,in:$in}}')" >/dev/null
   echo "$3: configured"
 }
 

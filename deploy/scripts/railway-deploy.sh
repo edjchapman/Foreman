@@ -58,32 +58,30 @@ check_image_exists() { # fail before pinning anything if the tag was never publi
   }
 }
 
+# GraphQL documents live in shell variables and the jq programs stay on ONE line:
+# macOS /bin/bash 3.2 mis-parses multi-line single-quoted strings inside "$(...)"
+# (brace-expands the braces in the query into separate words → HTTP 400 from the
+# API), so `make deploy` on a stock Mac breaks with anything fancier. CI's bash 5
+# never trips this — keep the constraint anyway. Same rule in railway-configure.sh.
+
 set_image() { # set_image <service-id>
-  gql "$(jq -n --arg s "$1" --arg e "$RAILWAY_ENVIRONMENT_ID" --arg i "$IMAGE" '{
-    query: "mutation($s:String!,$e:String!,$in:ServiceInstanceUpdateInput!){serviceInstanceUpdate(serviceId:$s,environmentId:$e,input:$in)}",
-    variables: {s: $s, e: $e, in: {source: {image: $i}}}
-  }')" >/dev/null
+  local q='mutation($s:String!,$e:String!,$in:ServiceInstanceUpdateInput!){serviceInstanceUpdate(serviceId:$s,environmentId:$e,input:$in)}'
+  gql "$(jq -n --arg q "$q" --arg s "$1" --arg e "$RAILWAY_ENVIRONMENT_ID" --arg i "$IMAGE" '{query:$q,variables:{s:$s,e:$e,in:{source:{image:$i}}}}')" >/dev/null
 }
 
 deploy() { # deploy <service-id> -> the created deployment's id
-  gql "$(jq -n --arg s "$1" --arg e "$RAILWAY_ENVIRONMENT_ID" '{
-    query: "mutation($s:String!,$e:String!){serviceInstanceDeployV2(serviceId:$s,environmentId:$e)}",
-    variables: {s: $s, e: $e}
-  }')" | jq -r '.data.serviceInstanceDeployV2'
+  local q='mutation($s:String!,$e:String!){serviceInstanceDeployV2(serviceId:$s,environmentId:$e)}'
+  gql "$(jq -n --arg q "$q" --arg s "$1" --arg e "$RAILWAY_ENVIRONMENT_ID" '{query:$q,variables:{s:$s,e:$e}}')" | jq -r '.data.serviceInstanceDeployV2'
 }
 
 deployment_status() { # deployment_status <deployment-id>
-  gql "$(jq -n --arg d "$1" '{
-    query: "query($d:String!){deployment(id:$d){status}}",
-    variables: {d: $d}
-  }')" | jq -r '.data.deployment.status // "UNKNOWN"'
+  local q='query($d:String!){deployment(id:$d){status}}'
+  gql "$(jq -n --arg q "$q" --arg d "$1" '{query:$q,variables:{d:$d}}')" | jq -r '.data.deployment.status // "UNKNOWN"'
 }
 
 latest_deployment_id() { # latest_deployment_id <service-id>
-  gql "$(jq -n --arg s "$1" --arg e "$RAILWAY_ENVIRONMENT_ID" '{
-    query: "query($s:String!,$e:String!){deployments(first:1,input:{serviceId:$s,environmentId:$e}){edges{node{id}}}}",
-    variables: {s: $s, e: $e}
-  }')" | jq -r '.data.deployments.edges[0].node.id // empty'
+  local q='query($s:String!,$e:String!){deployments(first:1,input:{serviceId:$s,environmentId:$e}){edges{node{id}}}}'
+  gql "$(jq -n --arg q "$q" --arg s "$1" --arg e "$RAILWAY_ENVIRONMENT_ID" '{query:$q,variables:{s:$s,e:$e}}')" | jq -r '.data.deployments.edges[0].node.id // empty'
 }
 
 # Polls the SPECIFIC deployment created by deploy() — "latest deployment of
