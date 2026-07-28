@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.1](https://github.com/edjchapman/Foreman/compare/v0.16.0...v0.16.1) (2026-07-28)
+
+
+### Bug Fixes
+
+* **deploy:** make railway scripts survive macOS stock bash 3.2 ([#135](https://github.com/edjchapman/Foreman/issues/135)) ([ae56fbc](https://github.com/edjchapman/Foreman/commit/ae56fbc6adde9c571bd86aa9fda7195d68cc954a))
+
 ## [0.16.0](https://github.com/edjchapman/Foreman/compare/v0.15.1...v0.16.0) (2026-07-24)
 
 
