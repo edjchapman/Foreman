@@ -26,7 +26,7 @@ One Railway project (`foreman`), one environment (`production`), five services
 | `web` | `ghcr.io/edjchapman/foreman:<semver>` | Image default CMD (daphne, port 8000). Healthcheck path `/readyz`. Pre-deploy command `python manage.py migrate`. Public domain generated (target port 8000). |
 | `worker` | same image | Start command `celery -A config worker -l info --concurrency 2` (`--concurrency 2` caps fork-per-visible-CPU RAM cost). The image puts the `--no-dev` venv on `PATH`, so the binary runs directly (no `uv` in the runtime image). |
 | `beat` | same image | Start command `celery -A config beat -l info`. Exactly 1 replica, always — two Beats double-schedule. The `celerybeat-schedule` file on ephemeral FS is fine (re-seeds from settings). |
-| `listener` *(optional)* | same image | Start command `python manage.py outbox_listener`. LISTEN/NOTIFY **push-dispatch** ([ADR 0007](adr/0007-listen-notify-dispatch.md)) — dispatches the outbox the instant a job commits, so the Beat poll above becomes a fallback. A latency optimization, not a delivery dependency: the stack is correct without it. CD deploys it only once `RAILWAY_LISTENER_SERVICE_ID` is set. |
+| `listener` *(optional)* | same image | Start command `python manage.py outbox_listener`. LISTEN/NOTIFY **push-dispatch** ([ADR 0007](adr/0007-listen-notify-dispatch.md)) — dispatches the outbox the instant a job commits, so the Beat poll above becomes a fallback. A latency optimization, not a delivery dependency: the stack is correct without it. CD deploys it only once `RAILWAY_LISTENER_SERVICE_ID` is set — enabled in the live demo since v0.16.1. |
 
 App services talk to Postgres/Redis over Railway **private networking**
 (`*.railway.internal` — the templates' default `DATABASE_URL`/`REDIS_URL`
@@ -229,6 +229,22 @@ re-runs its pinned semver tag), or `make deploy VERSION=<previous>` from
 anywhere with the token. **Migrations are not auto-reversed** — rolling back
 across a breaking migration needs a manual `migrate <app> <prev>` first (the
 `Job` schema convention is forward-compatible precisely to keep this rare).
+
+**Withdrawing the listener** (if push-dispatch misbehaves) is two steps, in
+this order:
+
+1. **Stop it**: Dashboard → `listener` → Deployments → **Remove** the active
+   deployment (or `terraform destroy -target=railway_service.listener` to
+   delete the service entirely).
+2. **Freeze it**: unset the `RAILWAY_LISTENER_SERVICE_ID` repo variable so CD
+   stops deploying it.
+
+The order matters because the variable is a *deploy-time* gate, not a runtime
+switch: unsetting it alone only freezes the listener — CD skips it on future
+releases, but the already-running container keeps dispatching indefinitely.
+Stopping the listener is always safe: the Beat poll is the unconditional
+durability fallback ([ADR 0007](adr/0007-listen-notify-dispatch.md)), so the
+system degrades to pre-listener latency with zero correctness impact.
 
 ## Cost & guardrails
 
