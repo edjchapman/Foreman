@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.16.2](https://github.com/edjchapman/Foreman/compare/v0.16.1...v0.16.2) (2026-07-31)
+
+
+### Bug Fixes
+
+* **api:** default job_type when omitted on job submit ([#139](https://github.com/edjchapman/Foreman/issues/139)) ([2d973de](https://github.com/edjchapman/Foreman/commit/2d973def775a52543be3d93e4bbf539f1ed71951))
+
+
+### Documentation
+
+* document listener rollout, rollback, and domain glossary ([#138](https://github.com/edjchapman/Foreman/issues/138)) ([0836a66](https://github.com/edjchapman/Foreman/commit/0836a6684c1dbdd689b4bdd3d3b3b6f60a2fdfce))
+
 ## [0.16.1](https://github.com/edjchapman/Foreman/compare/v0.16.0...v0.16.1) (2026-07-28)
 
 
