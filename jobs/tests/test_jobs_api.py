@@ -18,6 +18,18 @@ def test_submit_creates_pending_job(api_client):
     assert Job.objects.count() == 1
 
 
+def test_submit_without_job_type_uses_default(api_client):
+    # Regression: omitting job_type left validated_data without the key and the
+    # view's **splat into submit_job(*, job_type, ...) raised TypeError → 500.
+    resp = api_client.post(
+        "/api/v1/jobs/",
+        {"payload": {"source": "sample:properties.csv"}},
+        format="json",
+    )
+    assert resp.status_code == 202
+    assert resp.data["job_type"] == "property_csv_import"
+
+
 def test_submit_rejects_empty_payload(api_client):
     resp = api_client.post(
         "/api/v1/jobs/",
