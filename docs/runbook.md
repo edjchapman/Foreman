@@ -141,6 +141,33 @@ This scenario is executable: `make chaos` SIGKILLs the worker mid-import on an i
 compose stack and asserts every job still succeeds with no lost or duplicated rows — see
 [chaos/README.md](../chaos/README.md). CI repeats it nightly (`chaos.yml`, non-blocking).
 
+### Local test run can't reach Postgres (stale db container)
+
+Symptom: a host `pytest`/`make ci` run errors en masse (every `django_db` test)
+with Django's *"unable to create a connection to the 'postgres' database"*
+`RuntimeWarning` — escalated to an error by the strict `filterwarnings=error`
+config — even though `docker ps` shows `foreman-db-1` up and healthy.
+
+Check the port binding, not the health status:
+
+```bash
+docker port foreman-db-1   # empty output = the container isn't publishing 5432
+```
+
+Cause: `docker compose up` reuses an existing `db` container, and a stale one
+(observed under OrbStack after a daemon restart) can come up healthy **without
+its host port binding** — in-network services still reach it, but
+`localhost:5432` from the host is refused. Fix:
+
+```bash
+docker compose up -d --force-recreate db
+```
+
+The `pgdata` volume is untouched, so no local data is lost. Related one-off:
+immediately after the OrbStack daemon starts, the compose `migrate` one-shot
+can fail with *"failed to resolve host 'db'"* (a DNS race) — just rerun
+`make up`.
+
 ### Tunables
 
 Env-overridable; defaults shown. See [ADR 0002](adr/0002-retries-dlq-lease.md) for the
