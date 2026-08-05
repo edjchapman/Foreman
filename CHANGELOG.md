@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.16.3](https://github.com/edjchapman/Foreman/compare/v0.16.2...v0.16.3) (2026-08-05)
+
+
+### Build System
+
+* **deps:** bump cryptography from 49.0.0 to 50.0.0 ([#144](https://github.com/edjchapman/Foreman/issues/144)) ([820bae2](https://github.com/edjchapman/Foreman/commit/820bae2894fae59e0ce88f3ecb6fc4d6faf060fe))
+
+
+### Documentation
+
+* runbook procedure for the stale db container gotcha ([#141](https://github.com/edjchapman/Foreman/issues/141)) ([6b24859](https://github.com/edjchapman/Foreman/commit/6b24859fbe8cd08d450bdfe14502208a3bfd13dc))
+
 ## [0.16.2](https://github.com/edjchapman/Foreman/compare/v0.16.1...v0.16.2) (2026-07-31)
 
 
