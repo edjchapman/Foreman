@@ -1,5 +1,96 @@
 # Changelog
 
+## [0.17.0](https://github.com/edjchapman/Foreman/compare/v0.16.5...v0.17.0) (2026-08-10)
+
+
+### Features
+
+* chaos harness — worker SIGKILL + lease-reaper recovery proof ([#123](https://github.com/edjchapman/Foreman/issues/123)) ([b8d4664](https://github.com/edjchapman/Foreman/commit/b8d4664bb87cae6c009b779404aae90106673a83))
+* committed alert rules, SLOs, and a local observability profile ([#126](https://github.com/edjchapman/Foreman/issues/126)) ([88fcc3d](https://github.com/edjchapman/Foreman/commit/88fcc3d53d7c534b6c3fe8471bfd7da8f06be025))
+* **demo:** add a live queue board to the demo page ([#97](https://github.com/edjchapman/Foreman/issues/97)) ([b4932f8](https://github.com/edjchapman/Foreman/commit/b4932f845d2783b7a7430c7387335d1a0822b1fd))
+* **demo:** show retries, dead-letter and redrive live ([#77](https://github.com/edjchapman/Foreman/issues/77)) ([9869b11](https://github.com/edjchapman/Foreman/commit/9869b11c733524e6fd3f33ab4c57130d3a8bd5ee))
+* **deploy:** production-harden settings, WhiteNoise static, non-root Docker ([#40](https://github.com/edjchapman/Foreman/issues/40)) ([f8a46f6](https://github.com/edjchapman/Foreman/commit/f8a46f69bf059839cdcdf601904d70ab9743f5e2))
+* **deploy:** Railway platform — Terraform IaC, semver-pinned CD, release pipeline ([#46](https://github.com/edjchapman/Foreman/issues/46)) ([cca9722](https://github.com/edjchapman/Foreman/commit/cca972284967a12a31f7efd2b3f8fc61b6fce2de))
+* **deploy:** railway-configure script closes the IaC provider gaps ([#49](https://github.com/edjchapman/Foreman/issues/49)) ([daa9b93](https://github.com/edjchapman/Foreman/commit/daa9b933d2718a7557405da6076264f66a7c48ad))
+* **deploy:** serve the demo at foreman.edwardchapman.co.uk ([#132](https://github.com/edjchapman/Foreman/issues/132)) ([7add0b9](https://github.com/edjchapman/Foreman/commit/7add0b916bad2c5ea1b73328ec7869577cf8f916))
+* **deploy:** verify worker/beat rollout + GHCR tag pre-flight ([#48](https://github.com/edjchapman/Foreman/issues/48)) ([7360039](https://github.com/edjchapman/Foreman/commit/7360039bb7e0d04246ccd9aa0998d2f50f97fb6c))
+* **dispatch:** LISTEN/NOTIFY push dispatch with Beat fallback ([#81](https://github.com/edjchapman/Foreman/issues/81)) ([a3353b6](https://github.com/edjchapman/Foreman/commit/a3353b60075553bbbe5cf8ba08df0235be41981b))
+* downloadable CSV report for succeeded jobs ([#42](https://github.com/edjchapman/Foreman/issues/42)) ([35f93ad](https://github.com/edjchapman/Foreman/commit/35f93adc1e848fa533b93565bce30cfe6838aefe))
+* env-gated retention pruning for terminal jobs and outbox history ([#127](https://github.com/edjchapman/Foreman/issues/127)) ([1f4095a](https://github.com/edjchapman/Foreman/commit/1f4095a0b7d8afaf8946adcbc73eb24cff96a312))
+* https:// CSV sources with SSRF guard, size/timeout caps, and a row cap ([#128](https://github.com/edjchapman/Foreman/issues/128)) ([81ae3fa](https://github.com/edjchapman/Foreman/commit/81ae3faa497e73a656cc232b92f4160e5638536c))
+* load testing + event-rate and latency metrics ([#69](https://github.com/edjchapman/Foreman/issues/69)) ([aa0dd86](https://github.com/edjchapman/Foreman/commit/aa0dd869df198fa4bfba7c6ec674780221050e71))
+* M1 walking skeleton — Job submission API, Postgres, Docker, CI ([#1](https://github.com/edjchapman/Foreman/issues/1)) ([10037c0](https://github.com/edjchapman/Foreman/commit/10037c055261a8b565b3657f8e6c26b695488ff8))
+* **observability:** OpenTelemetry distributed tracing across the outbox ([#99](https://github.com/edjchapman/Foreman/issues/99)) ([617ae48](https://github.com/edjchapman/Foreman/commit/617ae4836d26be7e5b13895aae2ff5b828e50e11))
+* **observability:** structured logging, DB-derived metrics, liveness/readiness, runbook + ADR 0003 ([#34](https://github.com/edjchapman/Foreman/issues/34)) ([6174638](https://github.com/edjchapman/Foreman/commit/61746380a8178431f0d1b03f383dd351d0886752))
+* **outbox:** add OutboxEvent model and atomic submit_job service ([#9](https://github.com/edjchapman/Foreman/issues/9)) ([2fa6577](https://github.com/edjchapman/Foreman/commit/2fa657773aae9e79a854134a449a5da4f80188dd))
+* **realtime:** stream live job status over WebSockets (Channels) ([#36](https://github.com/edjchapman/Foreman/issues/36)) ([ef738e2](https://github.com/edjchapman/Foreman/commit/ef738e2684928359d62484b823172f469e3012cb))
+* **release:** release-please + GHCR image publishing ([#22](https://github.com/edjchapman/Foreman/issues/22)) ([af69950](https://github.com/edjchapman/Foreman/commit/af6995027ad7af9435312edc61b51af6bc770c02))
+* **typing:** mypy + django/DRF stubs, strict gate ([#15](https://github.com/edjchapman/Foreman/issues/15)) ([c8ce032](https://github.com/edjchapman/Foreman/commit/c8ce0322c529745f96783a2e717bbf8c2eaed813))
+* **ui:** minimal live job-status demo page ([#38](https://github.com/edjchapman/Foreman/issues/38)) ([bc285c0](https://github.com/edjchapman/Foreman/commit/bc285c0363d56e1318d03c8cc6b6f82994c1a537))
+* **worker:** idempotent re-import for exactly-once effect ([#12](https://github.com/edjchapman/Foreman/issues/12)) ([2257801](https://github.com/edjchapman/Foreman/commit/2257801a295714c4066fe6ec1562d890306c8b1c))
+* **worker:** lease reaper, operator redrive, and ADR 0002 ([#14](https://github.com/edjchapman/Foreman/issues/14)) ([7dfbf7c](https://github.com/edjchapman/Foreman/commit/7dfbf7cc502c690a9e109a02a159b6425be48c7b))
+* **worker:** outbox relay, worker, and real CSV ingestion ([#10](https://github.com/edjchapman/Foreman/issues/10)) ([a74d30c](https://github.com/edjchapman/Foreman/commit/a74d30c2b8f3f908d759bdc17330dbbe16376579))
+* **worker:** retries with backoff, dead-letter, and lease fencing ([#13](https://github.com/edjchapman/Foreman/issues/13)) ([e904516](https://github.com/edjchapman/Foreman/commit/e904516d238bccb682f13fbb0531ce752d4f19d1))
+* **worker:** scaffold Celery + Redis with an 80% coverage gate ([#6](https://github.com/edjchapman/Foreman/issues/6)) ([26e77ab](https://github.com/edjchapman/Foreman/commit/26e77ab6b64dae63e2cf29f93548015f7cd7f2cf))
+
+
+### Bug Fixes
+
+* **api:** default job_type when omitted on job submit ([#139](https://github.com/edjchapman/Foreman/issues/139)) ([2d973de](https://github.com/edjchapman/Foreman/commit/2d973def775a52543be3d93e4bbf539f1ed71951))
+* **build:** pin runtime image back to Python 3.12 to match the venv ([#101](https://github.com/edjchapman/Foreman/issues/101)) ([93a1ed0](https://github.com/edjchapman/Foreman/commit/93a1ed09538b352ccad0525f936fac75525f1305))
+* **ci:** fall back to the live URL when FOREMAN_E2E_URL is empty ([#130](https://github.com/edjchapman/Foreman/issues/130)) ([cfcb329](https://github.com/edjchapman/Foreman/commit/cfcb329aa1a2b8061ef4543a7b2451bb2fecd1ed))
+* **demo:** cap queue-board lane height so it scrolls instead of growing the page ([#104](https://github.com/edjchapman/Foreman/issues/104)) ([e3dcd95](https://github.com/edjchapman/Foreman/commit/e3dcd95b93d58c3412e51a86d076177dcbfbad80))
+* **deploy:** make railway scripts survive macOS stock bash 3.2 ([#135](https://github.com/edjchapman/Foreman/issues/135)) ([ae56fbc](https://github.com/edjchapman/Foreman/commit/ae56fbc6adde9c571bd86aa9fda7195d68cc954a))
+* **deploy:** poll rollouts by deployment id; replace vanished bitnami image ([#53](https://github.com/edjchapman/Foreman/issues/53)) ([5f2f96a](https://github.com/edjchapman/Foreman/commit/5f2f96af883369ae576a697edf84d7e58d54a50f))
+* **deploy:** stop terraform re-pinning CD-managed image tags ([#134](https://github.com/edjchapman/Foreman/issues/134)) ([0f101b5](https://github.com/edjchapman/Foreman/commit/0f101b5e6c4bc43da6ad38d7c08d3e1c25fcf4bc))
+* **deploy:** unblock Railway healthchecks and drop the redis volume ([#51](https://github.com/edjchapman/Foreman/issues/51)) ([5a41141](https://github.com/edjchapman/Foreman/commit/5a41141498be5aa7e40ff086f993737e036a3f87))
+* **deps:** bump cryptography to 50.0.0 (PYSEC-2026-3552) ([#145](https://github.com/edjchapman/Foreman/issues/145)) ([241bf50](https://github.com/edjchapman/Foreman/commit/241bf5043c4e1cee2b0e8df39bad3b9448668ddd))
+* **deps:** bump Django to 6.0.7 for PYSEC-2026-2090/2091/2092 ([#118](https://github.com/edjchapman/Foreman/issues/118)) ([2196988](https://github.com/edjchapman/Foreman/commit/219698893bec464c7acbd25f76784eff86e8e21d))
+* **tooling:** narrow .claude gitignore to keep shared hooks tracked ([#4](https://github.com/edjchapman/Foreman/issues/4)) ([98c1c07](https://github.com/edjchapman/Foreman/commit/98c1c072968e47a3d2f8659f21c613bcf7c5e49d))
+
+
+### Code Refactoring
+
+* consolidate deployment scripts under deploy/ ([#120](https://github.com/edjchapman/Foreman/issues/120)) ([2ae2842](https://github.com/edjchapman/Foreman/commit/2ae2842248029192deae1295c395d9f31f84a73a))
+* **demo:** consolidate the page on Alpine, one-row controls, refresh README ([#108](https://github.com/edjchapman/Foreman/issues/108)) ([75f7d8e](https://github.com/edjchapman/Foreman/commit/75f7d8e92b84ace1d26c97c07b7f92cf35dbe820))
+* **demo:** put live activity centre stage with a compact control bar ([#106](https://github.com/edjchapman/Foreman/issues/106)) ([a280c0c](https://github.com/edjchapman/Foreman/commit/a280c0c6c72fed776f0bf85d4b86edb4cd81d64b))
+* **jobs:** extract Job state machine into a lifecycle deep module ([#150](https://github.com/edjchapman/Foreman/issues/150)) ([7e2b2ed](https://github.com/edjchapman/Foreman/commit/7e2b2edbb200abfb2760db180625dd378f3328c0))
+* **scripts:** extract shared Railway lib; fix stale-branch output ([#57](https://github.com/edjchapman/Foreman/issues/57)) ([b4aa1e6](https://github.com/edjchapman/Foreman/commit/b4aa1e68ad30bd514d0c48bcd8f31666305070ac))
+
+
+### Build System
+
+* **deps-dev:** bump mypy from 1.19.1 to 2.1.0 in the python group across 1 directory ([#30](https://github.com/edjchapman/Foreman/issues/30)) ([43106e3](https://github.com/edjchapman/Foreman/commit/43106e3ebe68975a84748f1513dd75efac240356))
+* **deps:** bump cryptography from 49.0.0 to 50.0.0 ([#144](https://github.com/edjchapman/Foreman/issues/144)) ([820bae2](https://github.com/edjchapman/Foreman/commit/820bae2894fae59e0ce88f3ecb6fc4d6faf060fe))
+* **deps:** bump python from 3.12-slim-bookworm to 3.14-slim-bookworm ([#90](https://github.com/edjchapman/Foreman/issues/90)) ([15dd0bb](https://github.com/edjchapman/Foreman/commit/15dd0bb8fd1f6c8908631566c15162f299e21ef2))
+* **deps:** bump the python group with 6 updates ([#18](https://github.com/edjchapman/Foreman/issues/18)) ([1d7ad94](https://github.com/edjchapman/Foreman/commit/1d7ad9460af013d0ce606631dd4ce0116e11dd88))
+* multi-stage image + migrate-gated compose ([#79](https://github.com/edjchapman/Foreman/issues/79)) ([adea78e](https://github.com/edjchapman/Foreman/commit/adea78e38a17721b2ecf0e393f60a25319ff76bd))
+* **security:** pin base-image digest, docker Dependabot, provenance ([#27](https://github.com/edjchapman/Foreman/issues/27)) ([b2fe7c1](https://github.com/edjchapman/Foreman/commit/b2fe7c1219828869b758cce84b02d7878cb67fd4))
+* **tooling:** ruff rules, dep audit, dependabot, docker/git hygiene ([#16](https://github.com/edjchapman/Foreman/issues/16)) ([0f35a48](https://github.com/edjchapman/Foreman/commit/0f35a485fec2cb3d32857c4e4ac06fb3b33f01df))
+
+
+### Documentation
+
+* add architecture diagrams and demo screenshots ([#78](https://github.com/edjchapman/Foreman/issues/78)) ([a59e15b](https://github.com/edjchapman/Foreman/commit/a59e15bea5a908f4886d5d2db339fc462eb38e2c))
+* add deep-module design review (2026-08) ([#149](https://github.com/edjchapman/Foreman/issues/149)) ([179c715](https://github.com/edjchapman/Foreman/commit/179c71504766be9c673b7eb476bd1cc3d88916e8))
+* add the reliability case study — completes M5 ([#65](https://github.com/edjchapman/Foreman/issues/65)) ([2e90506](https://github.com/edjchapman/Foreman/commit/2e90506e30c9f88d176ce371825e6ea3ea6aa7e7))
+* capture load-test baseline numbers ([#71](https://github.com/edjchapman/Foreman/issues/71)) ([290ae89](https://github.com/edjchapman/Foreman/commit/290ae89922eaa4aebf6e792778d1075aa025eadc))
+* **case-study:** add distributed tracing, gate-placement, and buildless-demo notes ([#110](https://github.com/edjchapman/Foreman/issues/110)) ([36e721d](https://github.com/edjchapman/Foreman/commit/36e721d80bd4e63bf1098402c8525a37e574b6a9))
+* **claude:** extend the milestone roadmap with M6 and M7 ([#113](https://github.com/edjchapman/Foreman/issues/113)) ([6195623](https://github.com/edjchapman/Foreman/commit/6195623e3170e0a61e7f053b700663c36250abdf))
+* document listener rollout, rollback, and domain glossary ([#138](https://github.com/edjchapman/Foreman/issues/138)) ([0836a66](https://github.com/edjchapman/Foreman/commit/0836a6684c1dbdd689b4bdd3d3b3b6f60a2fdfce))
+* fix broken ci.md pipeline diagram; tighten overclaims ([#61](https://github.com/edjchapman/Foreman/issues/61)) ([95671f4](https://github.com/edjchapman/Foreman/commit/95671f4a5ee9d3cb57db07edb76cefc0de95323c))
+* lead the README with a successful run and document the agentic workflow ([#93](https://github.com/edjchapman/Foreman/issues/93)) ([e5f45c3](https://github.com/edjchapman/Foreman/commit/e5f45c37960a79a7c8c2154802d5d8d1b78839eb))
+* link the portfolio project page from the README ([#117](https://github.com/edjchapman/Foreman/issues/117)) ([26e9074](https://github.com/edjchapman/Foreman/commit/26e9074d907cbfef0113546ad4d826e1ba04efdf))
+* **readme:** badges, architecture diagram, platform docs ([#24](https://github.com/edjchapman/Foreman/issues/24)) ([bd6a04d](https://github.com/edjchapman/Foreman/commit/bd6a04d7ed4b63d587b95ccd31d3f80897ff20dc))
+* **readme:** best-practice portfolio README with table of contents ([#28](https://github.com/edjchapman/Foreman/issues/28)) ([f4b141d](https://github.com/edjchapman/Foreman/commit/f4b141d729913bb4d8c51024935ce5c9130123fe))
+* **readme:** extend the milestone note with M6 (load) and M7 (tracing) ([#112](https://github.com/edjchapman/Foreman/issues/112)) ([24e8bd1](https://github.com/edjchapman/Foreman/commit/24e8bd10a2b080c8b23d1c7ad4699e6f2112fec5))
+* **readme:** mark M2 complete and point to M3 as next ([#11](https://github.com/edjchapman/Foreman/issues/11)) ([90f298b](https://github.com/edjchapman/Foreman/commit/90f298b9c93819d04f8daed8368d459c7ee3c285))
+* refresh demo imagery for the restyled page ([#87](https://github.com/edjchapman/Foreman/issues/87)) ([33a428a](https://github.com/edjchapman/Foreman/commit/33a428a418f356f911af65d9510aaac774024a2a))
+* restructure README around signposts to the docs ([#85](https://github.com/edjchapman/Foreman/issues/85)) ([e91d442](https://github.com/edjchapman/Foreman/commit/e91d44208b9b340240cad94231f7c7a5c2db7955))
+* runbook procedure for the stale db container gotcha ([#141](https://github.com/edjchapman/Foreman/issues/141)) ([6b24859](https://github.com/edjchapman/Foreman/commit/6b24859fbe8cd08d450bdfe14502208a3bfd13dc))
+* showcase the live demo, add CI pipeline overview + code of conduct ([#58](https://github.com/edjchapman/Foreman/issues/58)) ([11f6e82](https://github.com/edjchapman/Foreman/commit/11f6e82afd8fddef68906b8271148e0f7aaf61b4))
+* surface load-test results prominently in the README ([#73](https://github.com/edjchapman/Foreman/issues/73)) ([8a6f9a5](https://github.com/edjchapman/Foreman/commit/8a6f9a5b87219a09a0048e6a564802eb81504caa))
+
 ## [0.16.5](https://github.com/edjchapman/Foreman/compare/v0.16.4...v0.16.5) (2026-08-10)
 
 
