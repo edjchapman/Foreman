@@ -30,8 +30,8 @@ class JobCreateSerializer(serializers.ModelSerializer):
         model = Job
         fields = ["job_type", "payload"]
         # DRF omits an absent model-defaulted field from validated_data, but the
-        # view splats validated_data into submit_job(*, job_type, ...) — supply
-        # the model's default here so the field is always present.
+        # view indexes validated_data["job_type"] directly — supply the model's
+        # default here so the key is always present.
         extra_kwargs = {"job_type": {"default": Job._meta.get_field("job_type").default}}
 
     def validate_payload(self, value: object) -> dict:

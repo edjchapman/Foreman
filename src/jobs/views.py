@@ -46,9 +46,13 @@ class JobViewSet(
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
+        # Explicit kwargs, not a **splat of validated_data: a new serializer field
+        # must be wired through here deliberately, never leaked into submit_job's
+        # signature (the TypeError → 500 shape hotfixed in #139).
         job, created = submit_job(
+            job_type=serializer.validated_data["job_type"],
+            payload=serializer.validated_data["payload"],
             idempotency_key=request.headers.get("Idempotency-Key"),
-            **serializer.validated_data,
         )
         data = JobSerializer(job, context=self.get_serializer_context()).data
         if not created:

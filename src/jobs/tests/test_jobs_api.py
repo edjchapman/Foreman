@@ -1,6 +1,7 @@
 import pytest
 
 from jobs.models import Job
+from jobs.serializers import JobCreateSerializer
 from jobs.tests.factories import JobFactory
 
 pytestmark = pytest.mark.django_db
@@ -19,8 +20,9 @@ def test_submit_creates_pending_job(api_client):
 
 
 def test_submit_without_job_type_uses_default(api_client):
-    # Regression: omitting job_type left validated_data without the key and the
-    # view's **splat into submit_job(*, job_type, ...) raised TypeError → 500.
+    # Regression: omitting job_type left validated_data without the key (#139).
+    # The serializer's extra_kwargs default must keep it present — the view
+    # indexes validated_data["job_type"], so a missing key is KeyError → 500.
     resp = api_client.post(
         "/api/v1/jobs/",
         {"payload": {"source": "sample:properties.csv"}},
@@ -28,6 +30,13 @@ def test_submit_without_job_type_uses_default(api_client):
     )
     assert resp.status_code == 202
     assert resp.data["job_type"] == "property_csv_import"
+
+
+def test_create_serializer_fields_are_wired_through_submit():
+    # Every field JobCreateSerializer accepts must be passed explicitly to
+    # submit_job in JobViewSet.create — if this fails, wire the new field
+    # through create() (do not reintroduce a **splat).
+    assert set(JobCreateSerializer().fields) == {"job_type", "payload"}
 
 
 def test_submit_rejects_empty_payload(api_client):
