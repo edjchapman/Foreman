@@ -165,6 +165,17 @@ def test_retry_delay_stays_within_the_jitter_window(attempts):
         assert 0 <= lifecycle.retry_delay(attempts) <= ceiling
 
 
+def test_process_job_returns_fenced_when_reaped_mid_import(monkeypatch):
+    """A worker whose progress write is fenced (reaped mid-run) aborts as 'fenced'."""
+    monkeypatch.setattr(lifecycle, "record_progress", lambda job, percent: False)
+    job = JobFactory()
+
+    assert process_job(str(job.id)) == "fenced"
+
+    job.refresh_from_db()
+    assert job.status == Job.Status.PROCESSING  # the (simulated) new owner's row, untouched
+
+
 # --- Lease-based crash recovery (the reaper) --------------------------------------
 
 
@@ -201,6 +212,16 @@ def test_reaper_dead_letters_when_attempts_are_exhausted():
     assert job.status == Job.Status.DEAD_LETTER
     assert job.leased_until is None
     assert "lease expired" in job.error
+
+
+def test_recover_jobs_reaps_then_requeues_in_the_same_tick(monkeypatch):
+    """A just-reaped job (available_at=now) is re-dispatched by the same recover run."""
+    dispatched: list[str] = []
+    monkeypatch.setattr(tasks.process_job, "delay", lambda job_id: dispatched.append(job_id))
+    job = _processing_with_lease(leased_until=timezone.now() - timedelta(seconds=1), attempts=1)
+
+    assert tasks.recover_jobs() == {"reaped": 1, "requeued": 1}
+    assert dispatched == [str(job.id)]
 
 
 def test_reaper_ignores_an_unexpired_lease():

@@ -94,6 +94,16 @@ def test_redrive_broadcasts_each_redriven_job(notified, django_capture_on_commit
     assert alive.status == Job.Status.SUCCEEDED  # untouched
 
 
+def test_succeed_without_started_at_logs_zero_latency(notified):
+    """A terminal write on a row that never recorded a claim start must not crash."""
+    job = JobFactory(status=Job.Status.PROCESSING, lease_token=uuid.uuid4())
+
+    assert lifecycle.succeed(job, result={}) is True  # latency falls back to 0
+
+    job.refresh_from_db()
+    assert job.status == Job.Status.SUCCEEDED
+
+
 def test_submit_job_broadcasts_creation(notified, django_capture_on_commit_callbacks):
     with django_capture_on_commit_callbacks(execute=True):
         job, created = submit_job(
