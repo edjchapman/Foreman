@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.4](https://github.com/edjchapman/Foreman/compare/v0.16.3...v0.16.4) (2026-08-05)
+
+
+### Bug Fixes
+
+* **deps:** bump cryptography to 50.0.0 (PYSEC-2026-3552) ([#145](https://github.com/edjchapman/Foreman/issues/145)) ([241bf50](https://github.com/edjchapman/Foreman/commit/241bf5043c4e1cee2b0e8df39bad3b9448668ddd))
+
 ## [0.16.3](https://github.com/edjchapman/Foreman/compare/v0.16.2...v0.16.3) (2026-08-05)
 
 
