@@ -1,6 +1,6 @@
 """Real-concurrency tests for the SKIP LOCKED claim paths (Postgres only).
 
-The rest of the suite is single-threaded, so it can only verify that `_lock_for_claim`
+The rest of the suite is single-threaded, so it can only verify that `lock_for_claim`
 *emits* SELECT ... FOR UPDATE SKIP LOCKED — not that concurrent claimers actually get
 disjoint rows. These tests exercise the property itself: N threads, each on its own DB
 connection, race the claim functions against a shared Postgres and assert exactly-one
@@ -23,7 +23,7 @@ import pytest
 from django.db import connection
 from django.utils import timezone
 
-from jobs import tasks
+from jobs import lifecycle, tasks
 from jobs.models import Job, OutboxEvent, PropertyRecord
 from jobs.tasks import OUTBOX_BATCH_SIZE, process_job
 from jobs.tests.factories import JobFactory
@@ -67,10 +67,10 @@ def _run_threads(count: int, fn):
 
 
 def test_only_one_of_many_concurrent_claims_wins():
-    """Eight simultaneous `_claim_pending` calls on one job yield exactly one winner."""
+    """Eight simultaneous `lifecycle.claim` calls on one job yield exactly one winner."""
     job = JobFactory()
 
-    claims = _run_threads(8, lambda i: tasks._claim_pending(str(job.id)))
+    claims = _run_threads(8, lambda i: lifecycle.claim(str(job.id)))
 
     winners = [claim for claim in claims if claim is not None]
     assert len(winners) == 1
@@ -153,8 +153,8 @@ def test_reaper_vs_claim_race_never_tears_the_row():
 
         def contend(index: int, job_id: str = str(job.id)):
             if index == 0:
-                return tasks._reap_expired_leases()
-            return tasks._claim_pending(job_id)
+                return lifecycle.reap_expired_leases()
+            return lifecycle.claim(job_id)
 
         _run_threads(2, contend)
 

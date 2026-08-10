@@ -13,7 +13,7 @@ from typing import Any
 
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 
-from jobs.services import redrive_dead_letter
+from jobs.lifecycle import redrive
 
 
 class Command(BaseCommand):
@@ -30,7 +30,7 @@ class Command(BaseCommand):
         for bad in invalid:
             self.stderr.write(f"skipped {bad}: not a valid UUID")
 
-        redriven = redrive_dead_letter(valid) if valid else 0
+        redriven = redrive(valid) if valid else 0
         if not redriven:
             raise CommandError("no DEAD_LETTER jobs redriven")
         self.stdout.write(self.style.SUCCESS(f"redriven {redriven} job(s)"))

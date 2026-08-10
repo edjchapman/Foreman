@@ -1,13 +1,48 @@
 import uuid
+from typing import Self
 
-from django.db import models
+from django.db import connection, models
+
+
+class LockingQuerySet[M: models.Model](models.QuerySet[M]):
+    """Row-locking helpers that degrade with the backend's capabilities.
+
+    Postgres (production) takes real row locks; backends without ``FOR UPDATE``
+    support (SQLite in local tests) fall back to a plain query — correct under the
+    single-threaded suite; concurrency safety is a Postgres-runtime property
+    exercised in CI.
+    """
+
+    def lock_for_claim(self) -> Self:
+        """Lock rows for a claim, using SKIP LOCKED where the backend supports it.
+
+        SKIP LOCKED lets parallel claimers (relays, workers, the reaper) take
+        disjoint rows without blocking each other.
+        """
+        features = connection.features
+        if not features.has_select_for_update:
+            return self
+        if features.has_select_for_update_skip_locked:
+            return self.select_for_update(skip_locked=True)
+        return self.select_for_update()
+
+    def lock(self) -> Self:
+        """Blocking row lock: concurrent callers wait rather than skip.
+
+        For operations that must never silently under-count (e.g. redrive) —
+        skipping a locked row would drop it from the batch.
+        """
+        if not connection.features.has_select_for_update:
+            return self
+        return self.select_for_update()
 
 
 class Job(models.Model):
     """A unit of asynchronous work.
 
-    Lifecycle: PENDING → PROCESSING → SUCCEEDED | FAILED | DEAD_LETTER, driven by
-    `jobs.tasks.process_job`. The M3 lease/scheduling fields (`available_at`,
+    Lifecycle: PENDING → PROCESSING → SUCCEEDED | FAILED | DEAD_LETTER — every
+    transition lives in `jobs.lifecycle`, driven by `jobs.tasks.process_job`.
+    The M3 lease/scheduling fields (`available_at`,
     `leased_until`, `lease_token`) carry retry backoff and crash-recovery state;
     `result` holds the import summary on success and `error` the failure detail.
     """
@@ -60,6 +95,8 @@ class Job(models.Model):
     started_at = models.DateTimeField(null=True, blank=True)
     finished_at = models.DateTimeField(null=True, blank=True)
 
+    objects = LockingQuerySet.as_manager()
+
     class Meta:
         ordering = ["-created_at"]
         # Partial index on the requeue scan's hot path (retry-scheduled rows only),
@@ -104,6 +141,8 @@ class OutboxEvent(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     dispatched_at = models.DateTimeField(null=True, blank=True)
+
+    objects = LockingQuerySet.as_manager()
 
     class Meta:
         ordering = ["id"]

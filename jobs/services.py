@@ -1,20 +1,19 @@
 """Write-side application services for the jobs app.
 
-Keeps the transactional-outbox invariant — Job and its OutboxEvent commit
-together or not at all — in one place the API and tests can both call.
+`submit_job` is the single entry into the Job state machine: it keeps the
+transactional-outbox invariant — Job and its OutboxEvent commit together or not
+at all — in one place the API and tests can both call. Every transition after
+submission lives in `jobs/lifecycle.py`.
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterable
-from uuid import UUID
-
 from django.db import IntegrityError, transaction
-from django.utils import timezone
 
 from config.otel import inject_trace
 
 from .models import Job, OutboxEvent
+from .realtime import notify_job
 
 
 def submit_job(*, job_type: str, payload: dict, idempotency_key: str | None) -> tuple[Job, bool]:
@@ -45,6 +44,9 @@ def submit_job(*, job_type: str, payload: dict, idempotency_key: str | None) -> 
                 event_type="job.created",
                 payload={"job_id": str(job.id), "trace": inject_trace()},
             )
+            # Creation is the first observable transition (nothing → PENDING): broadcast
+            # on commit so the push-only queue board shows the job before it is claimed.
+            transaction.on_commit(lambda: notify_job(job))
     except IntegrityError:
         # Lost the race to a concurrent first submit with the same key — the unique
         # constraint rejected us; return the row the winner committed.
@@ -55,22 +57,3 @@ def submit_job(*, job_type: str, payload: dict, idempotency_key: str | None) -> 
         raise
 
     return job, True
-
-
-def redrive_dead_letter(job_ids: Iterable[str | UUID]) -> int:
-    """Reset DEAD_LETTER jobs to PENDING for another run; returns the count redriven.
-
-    ``attempts`` resets to give a fresh retry budget and ``available_at`` is set to now,
-    so the ``recover_jobs`` requeue scan re-dispatches the job — no new dispatch path.
-    Non-existent or non-DEAD_LETTER ids are ignored (not counted).
-    """
-    now = timezone.now()
-    return Job.objects.filter(pk__in=job_ids, status=Job.Status.DEAD_LETTER).update(
-        status=Job.Status.PENDING,
-        attempts=0,
-        available_at=now,
-        leased_until=None,
-        lease_token=None,
-        error="",
-        updated_at=now,
-    )
