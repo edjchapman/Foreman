@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.2](https://github.com/edjchapman/Foreman/compare/v0.17.1...v0.17.2) (2026-08-10)
+
+
+### Code Refactoring
+
+* adopt src/ layout separating platform code from repo config ([#154](https://github.com/edjchapman/Foreman/issues/154)) ([5114c46](https://github.com/edjchapman/Foreman/commit/5114c46d40084e1ce05147a1d1ab164c58324bef))
+
 ## [0.17.1](https://github.com/edjchapman/Foreman/compare/v0.17.0...v0.17.1) (2026-08-10)
 
 
