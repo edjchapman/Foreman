@@ -27,7 +27,7 @@ def _raise_transient(job):
 def _record(msg, **extra):
     """Build a LogRecord, promoting `extra` kwargs to attributes as logging's `extra=` does."""
     record = logging.LogRecord(
-        name="jobs.tasks",
+        name="jobs.lifecycle",
         level=logging.INFO,
         pathname=__file__,
         lineno=1,
@@ -47,7 +47,7 @@ def test_json_formatter_emits_core_schema():
     payload = json.loads(JsonFormatter().format(_record("job.succeeded")))
     assert payload["event"] == "job.succeeded"
     assert payload["level"] == "INFO"
-    assert payload["logger"] == "jobs.tasks"
+    assert payload["logger"] == "jobs.lifecycle"
     assert "timestamp" in payload
 
 
@@ -90,7 +90,7 @@ def test_json_formatter_omits_trace_ids_without_span():
 
 def test_process_job_emits_claimed_and_succeeded(caplog):
     job = JobFactory()
-    with caplog.at_level(logging.INFO, logger="jobs.tasks"):
+    with caplog.at_level(logging.INFO, logger="jobs.lifecycle"):
         assert process_job(str(job.id)) == "succeeded"
 
     events = [r.getMessage() for r in caplog.records]
@@ -105,7 +105,7 @@ def test_process_job_emits_claimed_and_succeeded(caplog):
 def test_retry_then_dead_letter_events(monkeypatch, caplog):
     monkeypatch.setattr(tasks, "_import_properties", _raise_transient)
     job = JobFactory()
-    with caplog.at_level(logging.INFO, logger="jobs.tasks"):
+    with caplog.at_level(logging.INFO, logger="jobs.lifecycle"):
         for _ in range(settings.JOB_MAX_ATTEMPTS):
             process_job(str(job.id))
 
@@ -120,7 +120,7 @@ def test_retry_then_dead_letter_events(monkeypatch, caplog):
 
 def test_permanent_failure_event(caplog):
     job = JobFactory(payload={"source": "s3://bucket/data.csv"})
-    with caplog.at_level(logging.INFO, logger="jobs.tasks"):
+    with caplog.at_level(logging.INFO, logger="jobs.lifecycle"):
         assert process_job(str(job.id)) == "failed"
 
     failed = next(r for r in caplog.records if r.getMessage() == "job.failed")

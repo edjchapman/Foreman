@@ -16,11 +16,11 @@ from rest_framework.views import APIView
 
 from config import celery_app
 
+from . import lifecycle
 from .models import Job
-from .realtime import notify_job
 from .reports import report_filename, stream_report
 from .serializers import JobCreateSerializer, JobSerializer
-from .services import redrive_dead_letter, submit_job
+from .services import submit_job
 
 
 class JobViewSet(
@@ -79,8 +79,8 @@ class JobViewSet(
     def redrive(self, request: Request, pk: str | None = None) -> Response:
         """Redrive a dead-letter job back into the pipeline (the operator recovery action).
 
-        Resets the job to PENDING with a fresh retry budget (see
-        `jobs.services.redrive_dead_letter`); the `recover_jobs` scan re-dispatches it —
+        Resets the job to PENDING with a fresh retry budget (see `jobs.lifecycle.redrive`,
+        which also broadcasts the flip); the `recover_jobs` scan re-dispatches it —
         no new dispatch path. 409 (not 404) for a job that exists but isn't DEAD_LETTER:
         the resource is real, its state just isn't redrivable.
         """
@@ -90,10 +90,8 @@ class JobViewSet(
                 {"detail": "Only dead-letter jobs can be redriven.", "status": job.status},
                 status=status.HTTP_409_CONFLICT,
             )
-        redrive_dead_letter([job.id])
+        lifecycle.redrive([job.id])
         job.refresh_from_db()
-        # Broadcast the DEAD_LETTER → PENDING flip so any open status socket updates at once.
-        notify_job(job)
         data = JobSerializer(job, context=self.get_serializer_context()).data
         return Response(data, status=status.HTTP_200_OK)
 

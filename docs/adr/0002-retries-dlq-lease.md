@@ -69,7 +69,8 @@ an `OutboxEvent` is one `job.created` domain event — and it still could not ex
 
 ### Lease + reaper for crash recovery
 
-`_claim_pending` records a lease (`leased_until = now + JOB_LEASE_SECONDS`). `recover_jobs`
+The claim (now `jobs.lifecycle.claim`) records a lease (`leased_until = now +
+JOB_LEASE_SECONDS`). `recover_jobs`
 reaps `PROCESSING` jobs whose lease has expired — their worker died mid-process — back to
 `PENDING` (or `DEAD_LETTER` if attempts are spent). This is complementary to broker-level
 recovery, which covers a *different* window:

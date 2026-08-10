@@ -11,7 +11,7 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.utils import timezone
 
-from jobs import tasks
+from jobs import lifecycle, tasks
 from jobs.models import Job, PropertyRecord
 from jobs.tasks import process_job
 from jobs.tests.factories import JobFactory
@@ -143,14 +143,14 @@ def test_recover_jobs_requeues_only_due_retries(monkeypatch):
 @pytest.mark.parametrize(("attempts", "multiplier"), [(1, 1), (2, 2), (3, 4)])
 def test_retry_delay_doubles_each_attempt(monkeypatch, attempts, multiplier):
     # Pin the jitter to its ceiling to assert the exponential schedule exactly.
-    monkeypatch.setattr(tasks.random, "uniform", lambda lo, hi: hi)
-    assert tasks._retry_delay(attempts) == settings.JOB_RETRY_BASE_SECONDS * multiplier
+    monkeypatch.setattr(lifecycle.random, "uniform", lambda lo, hi: hi)
+    assert lifecycle.retry_delay(attempts) == settings.JOB_RETRY_BASE_SECONDS * multiplier
 
 
 def test_retry_delay_is_capped(monkeypatch):
     # A high attempt count saturates at the ceiling, not base * 2**(n-1).
-    monkeypatch.setattr(tasks.random, "uniform", lambda lo, hi: hi)
-    assert tasks._retry_delay(99) == settings.JOB_RETRY_MAX_SECONDS
+    monkeypatch.setattr(lifecycle.random, "uniform", lambda lo, hi: hi)
+    assert lifecycle.retry_delay(99) == settings.JOB_RETRY_MAX_SECONDS
 
 
 # A loop (not parametrize) for the Monte-Carlo samples: 20 draws per attempt assert one
@@ -162,7 +162,18 @@ def test_retry_delay_stays_within_the_jitter_window(attempts):
         settings.JOB_RETRY_BASE_SECONDS * 2 ** (attempts - 1),
     )
     for _ in range(20):
-        assert 0 <= tasks._retry_delay(attempts) <= ceiling
+        assert 0 <= lifecycle.retry_delay(attempts) <= ceiling
+
+
+def test_process_job_returns_fenced_when_reaped_mid_import(monkeypatch):
+    """A worker whose progress write is fenced (reaped mid-run) aborts as 'fenced'."""
+    monkeypatch.setattr(lifecycle, "record_progress", lambda job, percent: False)
+    job = JobFactory()
+
+    assert process_job(str(job.id)) == "fenced"
+
+    job.refresh_from_db()
+    assert job.status == Job.Status.PROCESSING  # the (simulated) new owner's row, untouched
 
 
 # --- Lease-based crash recovery (the reaper) --------------------------------------
@@ -180,7 +191,7 @@ def _processing_with_lease(*, leased_until, attempts):
 def test_reaper_requeues_a_job_whose_lease_expired():
     job = _processing_with_lease(leased_until=timezone.now() - timedelta(seconds=1), attempts=1)
 
-    assert tasks._reap_expired_leases() == 1
+    assert lifecycle.reap_expired_leases() == 1
 
     job.refresh_from_db()
     assert job.status == Job.Status.PENDING
@@ -195,7 +206,7 @@ def test_reaper_dead_letters_when_attempts_are_exhausted():
         leased_until=timezone.now() - timedelta(seconds=1), attempts=settings.JOB_MAX_ATTEMPTS
     )
 
-    assert tasks._reap_expired_leases() == 1
+    assert lifecycle.reap_expired_leases() == 1
 
     job.refresh_from_db()
     assert job.status == Job.Status.DEAD_LETTER
@@ -203,10 +214,20 @@ def test_reaper_dead_letters_when_attempts_are_exhausted():
     assert "lease expired" in job.error
 
 
+def test_recover_jobs_reaps_then_requeues_in_the_same_tick(monkeypatch):
+    """A just-reaped job (available_at=now) is re-dispatched by the same recover run."""
+    dispatched: list[str] = []
+    monkeypatch.setattr(tasks.process_job, "delay", lambda job_id: dispatched.append(job_id))
+    job = _processing_with_lease(leased_until=timezone.now() - timedelta(seconds=1), attempts=1)
+
+    assert tasks.recover_jobs() == {"reaped": 1, "requeued": 1}
+    assert dispatched == [str(job.id)]
+
+
 def test_reaper_ignores_an_unexpired_lease():
     job = _processing_with_lease(leased_until=timezone.now() + timedelta(seconds=60), attempts=1)
 
-    assert tasks._reap_expired_leases() == 0
+    assert lifecycle.reap_expired_leases() == 0
 
     job.refresh_from_db()
     assert job.status == Job.Status.PROCESSING  # untouched
@@ -215,15 +236,15 @@ def test_reaper_ignores_an_unexpired_lease():
 def test_a_stale_lease_token_write_is_fenced_out():
     """A reclaimed-then-resumed worker's terminal write must not clobber the row."""
     job = JobFactory()
-    stale = tasks._claim_pending(str(job.id))  # worker A claims → token T1
+    stale = lifecycle.claim(str(job.id))  # worker A claims → token T1
 
     # Simulate a reaper reset + a fresh claim by worker B → new token T2.
     Job.objects.filter(pk=job.id).update(status=Job.Status.PENDING, lease_token=None)
-    fresh = tasks._claim_pending(str(job.id))
+    fresh = lifecycle.claim(str(job.id))
     assert fresh.lease_token != stale.lease_token
 
     # Worker A finishes late and tries to mark SUCCEEDED with its stale token.
-    tasks._terminal(stale, Job.Status.SUCCEEDED, progress=100)
+    assert lifecycle.succeed(stale, result={}) is False  # the fence reports the discard
 
     job.refresh_from_db()
     assert job.status == Job.Status.PROCESSING  # B still owns it; A's write was discarded

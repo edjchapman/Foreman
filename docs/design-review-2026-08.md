@@ -104,8 +104,8 @@ notify, so each of its three callers must remember to compensate:
   an admin or CLI redrive is invisible to every connected WebSocket client,
   including the live queue board, until some other transition happens to fire.
 
-[`test_broadcast_seams.py`](../jobs/tests/test_broadcast_seams.py) exists
-solely to police this discipline transition-by-transition — a test suite
+`test_broadcast_seams.py` (since deleted — see recommendation A's status note)
+existed solely to police this discipline transition-by-transition — a test suite
 standing in for a guarantee the design could make structurally (see
 recommendation A: if every transition ends by scheduling its own broadcast,
 the discipline, the compensating view code, and most of that test file
@@ -203,6 +203,12 @@ None of these are applied. Order is by behaviour gained per line changed;
 sizes are estimates from a design pass against the current source.
 
 ### A. A `jobs/lifecycle.py` deep module (~190 lines, mostly code motion)
+
+> **Status: implemented** — `jobs/lifecycle.py` now owns every transition (plus
+> `record_progress` and the requeue claim, beyond the sketch below); the locking
+> helper became a shared `LockingQuerySet` on the models, fenced writes return
+> `bool`, and creation also broadcasts. Line references above describe the
+> pre-change code.
 
 One module owning every legal `Job` transition and its persistence rules:
 
