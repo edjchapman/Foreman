@@ -39,6 +39,35 @@ def _stale_and_fresh_claims(job):
     return stale, fresh
 
 
+def test_locking_queryset_degrades_with_backend_features(monkeypatch):
+    """The lock helpers fall back per backend capability (see LockingQuerySet).
+
+    Real SKIP LOCKED disjointness is a Postgres runtime property (test_concurrency);
+    this only pins the *selection* logic, which no single backend can fully reach.
+    """
+    from django.db import connection
+
+    queryset = Job.objects.all()
+
+    monkeypatch.setattr(connection.features, "has_select_for_update", False, raising=False)
+    assert queryset.lock_for_claim() is queryset  # no FOR UPDATE support → plain query
+    assert queryset.lock() is queryset
+
+    monkeypatch.setattr(connection.features, "has_select_for_update", True, raising=False)
+    monkeypatch.setattr(
+        connection.features, "has_select_for_update_skip_locked", False, raising=False
+    )
+    claimed = queryset.lock_for_claim()
+    assert claimed.query.select_for_update is True  # FOR UPDATE without SKIP LOCKED
+    assert claimed.query.select_for_update_skip_locked is False
+
+    monkeypatch.setattr(
+        connection.features, "has_select_for_update_skip_locked", True, raising=False
+    )
+    assert queryset.lock_for_claim().query.select_for_update_skip_locked is True
+    assert queryset.lock().query.select_for_update_skip_locked is False  # blocking lock
+
+
 def test_claim_broadcasts_only_on_commit(notified, django_capture_on_commit_callbacks):
     job = JobFactory()
     with django_capture_on_commit_callbacks(execute=True):
