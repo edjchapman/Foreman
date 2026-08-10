@@ -37,10 +37,12 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# Bring in the pre-built venv, then the app code. `.venv` is dockerignored, so `COPY . .`
-# never clobbers the venv copied from the builder.
+# Bring in the pre-built venv, then the app code. Only src/ (the platform) is copied —
+# repo configuration (docs, scripts, live-stack suites, deploy tooling) never ships in
+# the image, and the container layout stays flat (/app/config, /app/jobs, manage.py) so
+# the CMD, healthcheck, and platform start commands are independent of the repo layout.
 COPY --from=builder /app/.venv /app/.venv
-COPY . .
+COPY src/ ./
 
 # Collect static into the image so WhiteNoise serves it in prod. DEBUG=false selects the
 # compressed, hashed manifest backend; a throwaway secret satisfies settings import (no

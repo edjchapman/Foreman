@@ -36,23 +36,23 @@ observe: ## Stack + Prometheus/Grafana (alerts + SLO dashboard: localhost:9090 /
 # === App (host, via uv) ===
 
 migrate: ## Apply migrations
-	uv run python manage.py migrate
+	uv run python src/manage.py migrate
 
 makemigrations: ## Generate migrations
-	uv run python manage.py makemigrations
+	uv run python src/manage.py makemigrations
 
 test: ## Run the test suite
 	uv run pytest
 
 e2e: ## Browser tests against the live demo (Playwright; FOREMAN_E2E_URL retargets)
 	uv run --group e2e playwright install chromium
-	uv run --group e2e pytest -c e2e/pytest.ini e2e
+	uv run --group e2e pytest -c tests/e2e/pytest.ini tests/e2e
 
 load: ## Load test the pipeline (Locust web UI; FOREMAN_LOAD_URL retargets, needs a live stack)
-	uv run --group load locust -f load/locustfile.py --host $${FOREMAN_LOAD_URL:-http://localhost:8000}
+	uv run --group load locust -f tests/load/locustfile.py --host $${FOREMAN_LOAD_URL:-http://localhost:8000}
 
 chaos: ## SIGKILL the worker mid-job on an isolated stack; assert lease-reaper recovery (needs Docker)
-	uv run python chaos/chaos_worker_kill.py
+	uv run python tests/chaos/chaos_worker_kill.py
 
 lint: ## Lint + format-check (no changes)
 	uv run ruff check .
@@ -75,34 +75,34 @@ preflight: ci audit check ## Full pre-PR gate: ci (lint + types + tests) + audit
 	@echo "preflight: all gates green — safe to push."
 
 shell: ## Django shell
-	uv run python manage.py shell
+	uv run python src/manage.py shell
 
 # === Celery (M2: async worker + outbox relay) ===
 
 worker: ## Run a Celery worker (host)
-	uv run celery -A config worker -l info
+	PYTHONPATH=src uv run celery -A config worker -l info
 
 beat: ## Run Celery beat — schedules the outbox relay
-	uv run celery -A config beat -l info
+	PYTHONPATH=src uv run celery -A config beat -l info
 
 relay: ## Dispatch the outbox once (no beat) — claims + publishes PENDING events
-	uv run python manage.py shell -c "from jobs.tasks import dispatch_outbox; print(dispatch_outbox())"
+	uv run python src/manage.py shell -c "from jobs.tasks import dispatch_outbox; print(dispatch_outbox())"
 
 listener: ## Run the outbox push-dispatch listener (LISTEN/NOTIFY — ADR 0007; Postgres only)
-	uv run python manage.py outbox_listener
+	uv run python src/manage.py outbox_listener
 
 # === Deploy (M5: Railway — see docs/deploy.md) ===
 
 deploy: ## Deploy VERSION=<x.y.z> to Railway (pins image tags; web gates worker/beat)
-	@./deploy/scripts/railway-deploy.sh "$(VERSION)"
+	@./ops/deploy/scripts/railway-deploy.sh "$(VERSION)"
 
 configure: ## Post-`terraform apply` one-shot: set the deploy settings the provider can't express
-	@./deploy/scripts/railway-configure.sh
+	@./ops/deploy/scripts/railway-configure.sh
 
 tf-check: ## Terraform gate: fmt + validate the platform module (needs terraform CLI)
-	terraform -chdir=deploy/terraform fmt -check -recursive
-	terraform -chdir=deploy/terraform init -backend=false -input=false >/dev/null
-	terraform -chdir=deploy/terraform validate
+	terraform -chdir=ops/deploy/terraform fmt -check -recursive
+	terraform -chdir=ops/deploy/terraform init -backend=false -input=false >/dev/null
+	terraform -chdir=ops/deploy/terraform validate
 
 # === Validation (docs/hygiene gate — run by check.yml on PR/push + weekly schedule, and pre-commit) ===
 

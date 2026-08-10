@@ -1,7 +1,7 @@
 name: chaos
 
 # Nightly chaos run: SIGKILL the worker mid-job on an isolated compose stack and
-# assert lease-reaper recovery with no lost or duplicated rows (chaos/README.md).
+# assert lease-reaper recovery with no lost or duplicated rows (tests/chaos/README.md).
 # Deliberately NOT a PR gate — it needs Docker + real processes and proves a
 # runtime property, not a diff; a failure signals a reliability regression on main.
 

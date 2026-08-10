@@ -1,4 +1,4 @@
-# Chaos-run overrides, layered on docker-compose.yml by chaos/chaos_worker_kill.py
+# Chaos-run overrides, layered on docker-compose.yml by tests/chaos/chaos_worker_kill.py
 # (project name `foreman-chaos`, so containers/volumes never touch the dev stack).
 #
 # Two concerns:

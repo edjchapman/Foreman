@@ -26,7 +26,7 @@
 
 ## Live demo
 
-[Open the demo](https://foreman.edwardchapman.co.uk) and drive the pipeline yourself — each scenario streams **live over a WebSocket** (no polling — the [E2E suite](e2e/test_demo_page.py) asserts it), with the queue's own metrics ticking beside it:
+[Open the demo](https://foreman.edwardchapman.co.uk) and drive the pipeline yourself — each scenario streams **live over a WebSocket** (no polling — the [E2E suite](tests/e2e/test_demo_page.py) asserts it), with the queue's own metrics ticking beside it:
 
 - **Import sample CSV** — the happy path to `SUCCEEDED` + a downloadable report.
 - **Inject a flaky job** — a transient failure that retries with backoff and recovers on its own.
@@ -76,7 +76,7 @@ Failure modes and the crash-window analysis are in [ADR 0002](docs/adr/0002-retr
 
 ## Proven under load
 
-The guarantees are **measured, not asserted**: a [Locust harness](load/) drives the real pipeline while Prometheus counters and histograms on `/metrics` observe it ([ADR 0006](docs/adr/0006-load-testing-metrics.md)). The baseline showed queue wait — not processing — dominated latency, so dispatch moved to **Postgres `LISTEN/NOTIFY` push** with Beat as fallback ([ADR 0007](docs/adr/0007-listen-notify-dispatch.md)): queue-wait **p95 fell ~5.5×** (1.84 s → 0.34 s) and end-to-end p95 halved, at ~40 jobs/s with **zero failures** throughout.
+The guarantees are **measured, not asserted**: a [Locust harness](tests/load/) drives the real pipeline while Prometheus counters and histograms on `/metrics` observe it ([ADR 0006](docs/adr/0006-load-testing-metrics.md)). The baseline showed queue wait — not processing — dominated latency, so dispatch moved to **Postgres `LISTEN/NOTIFY` push** with Beat as fallback ([ADR 0007](docs/adr/0007-listen-notify-dispatch.md)): queue-wait **p95 fell ~5.5×** (1.84 s → 0.34 s) and end-to-end p95 halved, at ~40 jobs/s with **zero failures** throughout.
 
 ![Queue-wait latency before and after LISTEN/NOTIFY push-dispatch — p50 and p95 both fall sharply](docs/assets/load-listen-notify.png)
 

@@ -2,9 +2,9 @@
 
 Locust load test that drives the real submit → outbox → worker pipeline, so the
 reliability claims (throughput, backpressure, latency under concurrency) become
-*measured* rather than argued. See [`docs/load-testing.md`](../docs/load-testing.md)
+*measured* rather than argued. See [`docs/load-testing.md`](../../docs/load-testing.md)
 for how to read the results and a captured baseline; the rationale is
-[ADR 0006](../docs/adr/0006-load-testing-metrics.md).
+[ADR 0006](../../docs/adr/0006-load-testing-metrics.md).
 
 This directory mirrors the [`e2e/`](../e2e) suite: a separate dependency group
 (`load`), its own `make` target, and **excluded from `make ci`** because it needs
@@ -18,7 +18,7 @@ make load                                            # opens the Locust web UI a
 
 # Headless, retargeting the deployed platform at a fixed rate for a fixed time:
 FOREMAN_LOAD_URL=https://foreman.edwardchapman.co.uk \
-  uv run --group load locust -f load/locustfile.py \
+  uv run --group load locust -f tests/load/locustfile.py \
   --headless -u 20 -r 5 -t 2m
 ```
 
@@ -31,4 +31,4 @@ FOREMAN_LOAD_URL=https://foreman.edwardchapman.co.uk \
 
 While it runs, scrape `/metrics` (or point Prometheus/Grafana at it) and watch the
 counters and histograms added for exactly this purpose — throughput, p95 latency,
-and outbox backlog. The PromQL is in [`docs/load-testing.md`](../docs/load-testing.md).
+and outbox backlog. The PromQL is in [`docs/load-testing.md`](../../docs/load-testing.md).

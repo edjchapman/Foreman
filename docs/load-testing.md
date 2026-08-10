@@ -8,7 +8,7 @@ Rationale: [ADR 0006](adr/0006-load-testing-metrics.md).
 ## Run it
 
 The harness needs a live stack (web + Redis + Celery workers), so it is excluded
-from `make ci` — like the [`e2e/`](../e2e) suite.
+from `make ci` — like the [`tests/e2e/`](../tests/e2e) suite.
 
 ```bash
 # 1. Bring up a stack and workers (three terminals, or a deployed platform):
@@ -21,11 +21,11 @@ make load
 
 # Headless against the deployed platform, fixed rate and duration:
 FOREMAN_LOAD_URL=https://foreman.edwardchapman.co.uk \
-  uv run --group load locust -f load/locustfile.py --headless -u 20 -r 5 -t 2m
+  uv run --group load locust -f tests/load/locustfile.py --headless -u 20 -r 5 -t 2m
 ```
 
 `-u` users, `-r` ramp/second, `-t` duration. Scale load with these flags, not by
-editing the locustfile. See [`load/README.md`](../load/README.md) for the knobs.
+editing the locustfile. See [`tests/load/README.md`](../tests/load/README.md) for the knobs.
 
 ## Read the results
 

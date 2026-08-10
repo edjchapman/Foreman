@@ -36,14 +36,14 @@ standups
 .editorconfig
 .markdownlint-cli2.jsonc
 
-# Tests + host-only test suites (run via `make` on the host, never in the image)
-jobs/tests
-e2e
-load
-conftest.py
+# Tests + host-only test suites (run via `make` on the host, never in the image).
+# Only src/ is COPYed, but src/jobs/tests + src/conftest.py must still be excluded here.
+src/jobs/tests
+src/conftest.py
+tests
 
-# Deploy + dev tooling — operated on the host/CI, never read by the runtime image
-deploy
+# Ops + dev tooling — operated on the host/CI, never read by the runtime image
+ops
 scripts
 
 # Claude / local tooling

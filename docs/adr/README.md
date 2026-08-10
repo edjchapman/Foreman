@@ -19,3 +19,4 @@ rather than by edit; the project's vocabulary lives separately in
 | [0007](0007-listen-notify-dispatch.md) | LISTEN/NOTIFY push-dispatch for the outbox | Accepted |
 | [0008](0008-opentelemetry-tracing.md) | OpenTelemetry distributed tracing across the outbox | Accepted |
 | [0009](0009-lifecycle-module.md) | The lifecycle module owns every Job transition | Accepted |
+| [0010](0010-src-layout.md) | src/ layout: platform code separated from repo configuration | Accepted |
