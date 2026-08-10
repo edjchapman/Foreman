@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.1](https://github.com/edjchapman/Foreman/compare/v0.17.0...v0.17.1) (2026-08-10)
+
+
+### Documentation
+
+* **adr:** distill ADRs to minimal format; add lifecycle ADR and glossary ([#152](https://github.com/edjchapman/Foreman/issues/152)) ([371503e](https://github.com/edjchapman/Foreman/commit/371503e1f6dce20c26418411a0d86fd0509f2351))
+
 ## [0.17.0](https://github.com/edjchapman/Foreman/compare/v0.16.5...v0.17.0) (2026-08-10)
 
 
