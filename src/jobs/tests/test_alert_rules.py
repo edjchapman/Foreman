@@ -1,6 +1,6 @@
 """Drift guard: every metric the committed alert rules reference must exist.
 
-The alert/SLO rules in observability/prometheus/alerts.yml are plain YAML that
+The alert/SLO rules in ops/observability/prometheus/alerts.yml are plain YAML that
 nothing type-checks — a metric rename in jobs/metrics.py would silently break
 every alert. This cross-checks the rule file's `foreman_*` references against
 the live /metrics exposition (regex over raw text, so no YAML dependency).
@@ -15,7 +15,9 @@ import pytest
 
 pytestmark = pytest.mark.django_db
 
-RULES_FILE = Path(__file__).resolve().parents[2] / "observability" / "prometheus" / "alerts.yml"
+RULES_FILE = (
+    Path(__file__).resolve().parents[3] / "ops" / "observability" / "prometheus" / "alerts.yml"
+)
 
 
 def test_alert_rules_reference_only_exported_metrics(api_client):

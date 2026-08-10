@@ -1,7 +1,7 @@
 # Observability: structured logging, metrics, health/readiness
 
 Every job transition emits one structured JSON log event (stdlib formatter,
-`config/logformat.py`); `/metrics` exposes **gauges derived from Postgres at
+`src/config/logformat.py`); `/metrics` exposes **gauges derived from Postgres at
 scrape time** (queue depths, backlog age) rather than process-local counters;
 and `/healthz` (pure liveness, no dependency I/O) is split from `/readyz`
 (database + broker), because a DB blip should stop traffic routing, not restart

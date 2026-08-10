@@ -21,10 +21,10 @@
 #                              to send an account token as Authorization: Bearer.
 #   RAILWAY_ENVIRONMENT_ID     optional — when unset, all four IDs are read from
 #   RAILWAY_WEB_SERVICE_ID       `terraform output -json github_ci_variables`
-#   RAILWAY_WORKER_SERVICE_ID    in deploy/terraform (needs local state).
+#   RAILWAY_WORKER_SERVICE_ID    in ops/deploy/terraform (needs local state).
 #   RAILWAY_BEAT_SERVICE_ID
 #
-# USAGE: terraform -chdir=deploy/terraform apply && ./deploy/scripts/railway-configure.sh
+# USAGE: terraform -chdir=ops/deploy/terraform apply && ./ops/deploy/scripts/railway-configure.sh
 
 set -euo pipefail
 
@@ -47,7 +47,7 @@ fi
 : "${RAILWAY_BEAT_SERVICE_ID:?RAILWAY_BEAT_SERVICE_ID is required}"
 
 # Shared Railway plumbing: RAILWAY_API, AUTH_HEADER (token-kind aware), gql().
-# shellcheck source=deploy/scripts/_lib-railway.sh
+# shellcheck source=ops/deploy/scripts/_lib-railway.sh
 . "$(dirname "${BASH_SOURCE[0]}")/_lib-railway.sh"
 
 configure() { # configure <service-id> <ServiceInstanceUpdateInput json> <label>

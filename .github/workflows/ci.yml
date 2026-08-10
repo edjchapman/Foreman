@@ -46,7 +46,7 @@ jobs:
       - name: Install dependencies
         run: uv sync
       - name: Apply migrations (validates against Postgres)
-        run: uv run python manage.py migrate
+        run: uv run python src/manage.py migrate
       - name: Lint + test
         run: make ci
       - name: Upload coverage to Codecov

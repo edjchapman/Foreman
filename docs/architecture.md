@@ -41,7 +41,7 @@ vs poison), the backoff schedule, and why retry state lives in Postgres.
 The **outbox** decouples submission from dispatch: the API only writes rows, a
 Beat-scheduled relay publishes them, and the worker owns processing. No component
 re-reads a job it might race. Status reaches the browser over a WebSocket —
-pushed, never polled (the [E2E suite](../e2e/test_demo_page.py) asserts it).
+pushed, never polled (the [E2E suite](../tests/e2e/test_demo_page.py) asserts it).
 
 ```mermaid
 sequenceDiagram

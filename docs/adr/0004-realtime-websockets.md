@@ -13,7 +13,7 @@ authoritative snapshot on connect, then deltas; broadcasts are best-effort
 
 Since the 2026-08 amendment, *calling* `notify_job` is not a per-seam
 obligation: every transition schedules its own on-commit broadcast inside
-`jobs/lifecycle.py` ([ADR 0009](0009-lifecycle-module.md)) — correct in both
+`src/jobs/lifecycle.py` ([ADR 0009](0009-lifecycle-module.md)) — correct in both
 transactional and autocommit contexts, and impossible for a caller to forget.
 
 ## Considered Options

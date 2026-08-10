@@ -51,6 +51,7 @@ package = false
 [tool.ruff]
 target-version = "py312"
 line-length = 100
+src = ["src"]
 
 [tool.ruff.lint]
 # Base: pyflakes, pycodestyle, isort, pyupgrade, bugbear, flake8-django. Plus:
@@ -64,14 +65,14 @@ ignore = ["RUF012"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/migrations/*" = ["E501"]
-"jobs/tests/*" = ["S101"]   # asserts are the point of a test
-"e2e/*" = ["S101"]
-"conftest.py" = ["S101"]
-"jobs/lifecycle.py" = ["S311"]  # random.uniform is backoff jitter, not crypto
+"src/jobs/tests/*" = ["S101"]   # asserts are the point of a test
+"tests/e2e/*" = ["S101"]
+"src/conftest.py" = ["S101"]
+"src/jobs/lifecycle.py" = ["S311"]  # random.uniform is backoff jitter, not crypto
 "scripts/*" = ["S607"]      # dev validators invoke `git` from PATH (portable across OSes)
 # The chaos driver shells out to `docker compose` (fixed argv, PATH lookup) and probes
 # its own local stack over http:// — bandit's subprocess/urlopen audits don't apply.
-"chaos/*" = ["S310", "S603", "S607"]
+"tests/chaos/*" = ["S310", "S603", "S607"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -81,7 +82,8 @@ strict = true
 # and the values are Any either way — disallow_any_generics buys noise, not safety.
 disallow_any_generics = false
 plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
-files = ["config", "jobs", "manage.py", "conftest.py"]
+files = ["src/config", "src/jobs", "src/manage.py", "src/conftest.py"]
+mypy_path = "src"
 pretty = true
 
 [tool.django-stubs]
@@ -109,10 +111,14 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings"
+# The platform is path-based (src/ layout, `package = false`) — put src/ on the
+# import path so `config`/`jobs` resolve without installing anything.
+pythonpath = ["src"]
 python_files = ["test_*.py"]
-# Unit suite only — e2e/ has its own config (e2e/pytest.ini, run by `make e2e`)
-# and needs a browser + a live platform, so plain `pytest` must not collect it.
-testpaths = ["jobs"]
+# Unit suite only — tests/e2e/ has its own config (tests/e2e/pytest.ini, run by
+# `make e2e`) and needs a browser + a live platform, so plain `pytest` must not
+# collect it.
+testpaths = ["src/jobs"]
 # Async consumer tests run under pytest-asyncio in auto mode (no per-test marker needed, so
 # --strict-markers stays green); pinning the fixture loop scope silences a pytest-asyncio
 # PytestDeprecationWarning that filterwarnings=error would otherwise turn into a failure.
@@ -138,9 +144,9 @@ source = ["jobs", "config"]
 omit = [
     "*/migrations/*",
     "*/tests/*",
-    "config/wsgi.py",
-    "config/asgi.py",
-    "manage.py",
+    "*/config/wsgi.py",
+    "*/config/asgi.py",
+    "*/manage.py",
 ]
 
 [tool.coverage.report]

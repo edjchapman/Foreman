@@ -9,7 +9,7 @@ watch:
 - `foreman_outbox_pending` + `_oldest_pending_age_seconds`  → relay backlog under load
 - `foreman_jobs{status="PROCESSING"}`                       → worker concurrency
 
-Run via `make load` (see load/README.md); `FOREMAN_LOAD_URL` retargets (default
+Run via `make load` (see tests/load/README.md); `FOREMAN_LOAD_URL` retargets (default
 http://localhost:8000). Deliberately outside `make ci`: it needs a live platform
 with Redis + Celery workers, exactly like the `e2e/` suite. Locust is a dev-only
 dependency (the `load` group in pyproject.toml), never shipped in the image.

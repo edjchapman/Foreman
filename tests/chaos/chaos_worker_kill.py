@@ -16,7 +16,7 @@ it, and asserts the reliability contract held:
   is the ``acks_late``/``reject_on_worker_lost`` contract observed for real.
 
 Excluded from `make ci` (needs Docker); run via `make chaos` from the repo root.
-Set CHAOS_KEEP=1 to leave the stack up for a post-mortem. See chaos/README.md.
+Set CHAOS_KEEP=1 to leave the stack up for a post-mortem. See tests/chaos/README.md.
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ COMPOSE = [
     "-f",
     "docker-compose.yml",
     "-f",
-    "chaos/compose.chaos.yml",
+    "tests/chaos/compose.chaos.yml",
 ]
 FAST_JOBS = 20
 SLEEP_JOBS = 3

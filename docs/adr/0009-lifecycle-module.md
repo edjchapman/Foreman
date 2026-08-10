@@ -2,7 +2,7 @@
 
 Job transitions were spelled across ~10 sites in `tasks.py`/`services.py`, and
 broadcasting was a per-caller obligation that admin and CLI redrive had already
-forgotten. Now `jobs/lifecycle.py` is the single home for every `Job` write:
+forgotten. Now `src/jobs/lifecycle.py` is the single home for every `Job` write:
 each transition persists, emits its structured log event, and schedules its own
 `transaction.on_commit` broadcast — inseparably, so notification is a property
 of the transition, not a caller discipline. Fenced-out writes (a reaped
@@ -28,7 +28,7 @@ silent — the live owner announces its own state. Callers never invoke
   backlog.
 - The silent admin/CLI redrive was fixed structurally, and the per-seam
   broadcast test file dissolved into interface-level contract tests
-  (`jobs/tests/test_lifecycle.py`).
+  (`src/jobs/tests/test_lifecycle.py`).
 - Amends [ADR 0004](0004-realtime-websockets.md), whose caller-side broadcast
   mechanics this replaces. Executed in
   [PR #150](https://github.com/edjchapman/Foreman/pull/150).

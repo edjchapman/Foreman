@@ -1,7 +1,7 @@
 # Load testing & event-rate / latency metrics
 
 To measure the pipeline under pressure, a **Locust** harness (`make load`, own
-dependency group, excluded from CI like `e2e/`) drives submit → outbox → worker,
+dependency group, excluded from CI like `tests/e2e/`) drives submit → outbox → worker,
 and `/metrics` gains rate and latency series that stay **DB-derived**: terminal
 states are monotonic (a job never leaves one), so live row-counts *are*
 cumulative totals (`foreman_jobs_processed_total{status}`), and queue-wait /

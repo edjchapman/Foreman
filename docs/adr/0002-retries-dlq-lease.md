@@ -29,4 +29,4 @@ attempts budget, dispatched by the existing requeue lane — no new dispatch pat
 - A reaped-then-resumed **zombie worker** can race its replacement; the fence
   discards its state writes and the per-job unique constraint absorbs its rows.
 - Tunables (`JOB_MAX_ATTEMPTS`, backoff base/cap, lease and poll intervals) are
-  env-overridable; defaults live in `config/settings.py`.
+  env-overridable; defaults live in `src/config/settings.py`.

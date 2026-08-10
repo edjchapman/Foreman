@@ -22,25 +22,25 @@ and the two wire shapes (the outbox event payload and the WebSocket envelope).
 Credit first, because the best modules here are genuinely good and worth
 imitating when touching the weaker ones.
 
-- **[`jobs/metrics.py`](../jobs/metrics.py)** is the deepest module in the
+- **[`jobs/metrics.py`](../src/jobs/metrics.py)** is the deepest module in the
   repo. Eight Prometheus series — gauges, monotonic counters, and DB-side
   bucketed histograms — sit behind a single scrape interface, derived entirely
   from Postgres at collection time. There is **not one `.inc()` or
   `.observe()` call site anywhere in the codebase**: a new code path is
   observable by construction, costing its author nothing and leaving nothing
   to forget. That is locality by design ([ADR 0006](adr/0006-load-testing-metrics.md)).
-- **[`config/otel.py`](../config/otel.py)** hides the whole OpenTelemetry
+- **[`config/otel.py`](../src/config/otel.py)** hides the whole OpenTelemetry
   SDK/instrumentor setup behind four functions (`configure_tracing`,
   `get_tracer`, `inject_trace`, `span_from_carrier`). The outbox trace bridge
   — inject the carrier at write time (`jobs/services.py:46`), re-hydrate it at
   dispatch (`jobs/tasks.py:86`) — crosses a gap that no auto-instrumentation
   can, for a two-function interface ([ADR 0008](adr/0008-opentelemetry-tracing.md)).
-- **[`jobs/ingest.py`](../jobs/ingest.py)** is the only module in the repo
+- **[`jobs/ingest.py`](../src/jobs/ingest.py)** is the only module in the repo
   tested purely through its public interface
-  ([`test_ingest.py`](../jobs/tests/test_ingest.py) calls `load_csv_text` and
+  ([`test_ingest.py`](../src/jobs/tests/test_ingest.py) calls `load_csv_text` and
   `parse_rows`, nothing else). The docstring's "swappable processing seam"
   claim mostly holds — the exception is finding 3.
-- **`submit_job`** ([`jobs/services.py`](../jobs/services.py)) passes the
+- **`submit_job`** ([`jobs/services.py`](../src/jobs/services.py)) passes the
   deletion test: delete it and the Job+OutboxEvent atomicity invariant — the
   whole point of the outbox — reappears at every submission site. One small
   function, one invariant, one home.
@@ -71,8 +71,8 @@ Because the rules have no single home, they are spelled repeatedly:
   `_recover_one_lease` are the same transition with different delays, written
   as different code.
 - The **terminal-status set** is defined independently **four times**
-  in-process ([`jobs/retention.py`](../jobs/retention.py) line 32,
-  [`jobs/metrics.py`](../jobs/metrics.py) lines 52–56, plus the chaos and
+  in-process ([`jobs/retention.py`](../src/jobs/retention.py) line 32,
+  [`jobs/metrics.py`](../src/jobs/metrics.py) lines 52–56, plus the chaos and
   Locust scripts) and again in the demo page's JS.
 
 `redrive_dead_letter` is the sharpest symptom: it is a state transition living
@@ -87,7 +87,7 @@ transition added (pause? cancel?) has no interface to conform to.
 
 ## Finding 2 — broadcast is a caller obligation, and one caller forgot
 
-`notify_job` ([`jobs/realtime.py`](../jobs/realtime.py)) is the single
+`notify_job` ([`jobs/realtime.py`](../src/jobs/realtime.py)) is the single
 sync→async broadcast seam ([ADR 0004](adr/0004-realtime-websockets.md)) — good.
 But *calling* it is a per-transition obligation: nine call sites (eight in
 `jobs/tasks.py`, one in `jobs/views.py:96`), and each caller must also know
@@ -97,10 +97,10 @@ That ordering rule lives in the callers' heads, not in any interface.
 The predictable failure has already happened. `redrive_dead_letter` doesn't
 notify, so each of its three callers must remember to compensate:
 
-- [`jobs/views.py`](../jobs/views.py) lines 94–96 remembers
+- [`jobs/views.py`](../src/jobs/views.py) lines 94–96 remembers
   (`refresh_from_db()` + `notify_job`);
-- [`jobs/admin.py`](../jobs/admin.py) lines 27–29 and
-  [`manage.py redrive`](../jobs/management/commands/redrive.py) **do not** —
+- [`jobs/admin.py`](../src/jobs/admin.py) lines 27–29 and
+  [`manage.py redrive`](../src/jobs/management/commands/redrive.py) **do not** —
   an admin or CLI redrive is invisible to every connected WebSocket client,
   including the live queue board, until some other transition happens to fire.
 
@@ -117,7 +117,7 @@ disappear together).
 `https://`) — but the fourth scheme, `fault:`, is dispatched *outside* the
 seam, in `jobs/tasks.py:249-257` (`_import_properties` branches on
 `is_fault_source` itself). That falsifies
-[`jobs/faults.py`](../jobs/faults.py)'s explicit claim (lines 24–25) to be
+[`jobs/faults.py`](../src/jobs/faults.py)'s explicit claim (lines 24–25) to be
 "the only place that knows about `fault:` sources", and it means payload-shape
 knowledge (`payload["source"]`) is read in two modules and constructed in at
 least five places across production code, fixtures, and the demo JS.
@@ -138,20 +138,20 @@ its home is nowhere.
 ## Finding 4 — `tasks.py` is tested past its interface
 
 The interface is the test surface: callers and tests should cross the same
-seam. [`jobs/tasks.py`](../jobs/tasks.py) — at 372 lines the largest module —
+seam. [`jobs/tasks.py`](../src/jobs/tasks.py) — at 372 lines the largest module —
 exposes four Celery tasks, but its most valuable behaviour (claim, lease,
 fence, backoff, reap) is only reachable as private helpers, so the tests reach
 past the interface:
 
-- [`test_reliability.py`](../jobs/tests/test_reliability.py) and
-  [`test_concurrency.py`](../jobs/tests/test_concurrency.py) call
+- [`test_reliability.py`](../src/jobs/tests/test_reliability.py) and
+  [`test_concurrency.py`](../src/jobs/tests/test_concurrency.py) call
   `_claim_pending`, `_reap_expired_leases`, `_terminal`, and `_retry_delay`
   directly, and monkeypatch `_import_properties` and `random.uniform`.
 
 When the best tests in the suite (these are the ones that prove the
 lease-fencing race) can only express themselves against private names, the
 module is the wrong shape: the reliability engine wants an interface of its
-own. Notably, [`jobs/retention.py`](../jobs/retention.py) was already split
+own. Notably, [`jobs/retention.py`](../src/jobs/retention.py) was already split
 out of `tasks.py` on exactly this kind of pressure — the precedent exists.
 
 ## Finding 5 — the wire shapes have no owner in the tests
@@ -162,7 +162,7 @@ consumer are never tested against each other:
 - **WebSocket group envelope** `{"type", "data", "trace"}`: built at
   `jobs/realtime.py:57-58`, parsed at `jobs/consumers.py:45-48` and `:77-80` —
   and hand-duplicated in
-  [`test_consumers.py`](../jobs/tests/test_consumers.py) (lines 66–69 and
+  [`test_consumers.py`](../src/jobs/tests/test_consumers.py) (lines 66–69 and
   97–100), which drives the consumers with hand-built dicts instead of
   `notify_job`. A shape drift between producer and consumer would break
   production while both halves' tests stay green.
@@ -178,10 +178,10 @@ into (payload under `"job"`).
 
 ## Minor observations
 
-- [`jobs/models.py`](../jobs/models.py) is pure declaration — no managers, no
+- [`jobs/models.py`](../src/jobs/models.py) is pure declaration — no managers, no
   methods; all behaviour is external, including a behavioural piece of
   `OutboxEvent` (the `pg_notify` trigger) that lives invisibly in
-  [migration 0006](../jobs/migrations/0006_outbox_notify_trigger.py).
+  [migration 0006](../src/jobs/migrations/0006_outbox_notify_trigger.py).
 - `reports.stream_report`'s `SUCCEEDED` precondition lives in the view
   (`jobs/views.py:69`); called directly, the module happily streams a failed
   job's partial rows. The filename comes from the module but the

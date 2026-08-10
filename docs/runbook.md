@@ -44,12 +44,12 @@ Prometheus rules; see [SLOs & alerts](#slos--alerts).
 ## SLOs & alerts
 
 The committed source of truth for "what pages" is
-[`observability/prometheus/alerts.yml`](../observability/prometheus/alerts.yml)
+[`ops/observability/prometheus/alerts.yml`](../ops/observability/prometheus/alerts.yml)
 — alert rules with runbook-link annotations, plus recording rules for the SLO
 signals. Run it locally with `make observe` (the full stack + Prometheus at
 `http://localhost:9090` and Grafana at `http://localhost:3000`, dashboard and
 datasource auto-provisioned, no login). A drift-guard test
-(`jobs/tests/test_alert_rules.py`) fails CI if a rule references a metric that
+(`src/jobs/tests/test_alert_rules.py`) fails CI if a rule references a metric that
 `/metrics` no longer exports.
 
 | SLO | Target | Signal (recording rule) |
@@ -139,7 +139,7 @@ reaped is fenced out by its stale `lease_token` and cannot corrupt the row.
 
 This scenario is executable: `make chaos` SIGKILLs the worker mid-import on an isolated
 compose stack and asserts every job still succeeds with no lost or duplicated rows — see
-[chaos/README.md](../chaos/README.md). CI repeats it nightly (`chaos.yml`, non-blocking).
+[tests/chaos/README.md](../tests/chaos/README.md). CI repeats it nightly (`chaos.yml`, non-blocking).
 
 ### Local test run can't reach Postgres (stale db container)
 
