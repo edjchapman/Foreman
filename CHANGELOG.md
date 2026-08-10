@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.5](https://github.com/edjchapman/Foreman/compare/v0.16.4...v0.16.5) (2026-08-10)
+
+
+### Documentation
+
+* add deep-module design review (2026-08) ([#149](https://github.com/edjchapman/Foreman/issues/149)) ([179c715](https://github.com/edjchapman/Foreman/commit/179c71504766be9c673b7eb476bd1cc3d88916e8))
+
 ## [0.16.4](https://github.com/edjchapman/Foreman/compare/v0.16.3...v0.16.4) (2026-08-05)
 
 
