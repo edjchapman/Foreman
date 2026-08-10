@@ -1,6 +1,6 @@
 # ADR 0004 — Realtime job status over WebSockets (Django Channels)
 
-- **Status:** Accepted
+- **Status:** Accepted — amended 2026-08 (see [Amendment](#amendment-2026-08--broadcast-ownership-moved-into-jobslifecyclepy))
 - **Milestone:** M4 (realtime slice — completes the half deferred in ADR 0003)
 - **Extends:** [ADR 0003](0003-observability.md); the streamed events originate at the same
   claim/terminal/retry/reaper transitions instrumented for logging in ADR 0002/0003.
@@ -83,6 +83,27 @@ Redis. Consumer tests use `WebsocketCommunicator` under pytest-asyncio (`auto` m
 **Postgres-only** (`database_sync_to_async` uses a second connection an in-memory SQLite
 can't share); the `on_commit` seams are covered synchronously with
 `django_capture_on_commit_callbacks`.
+
+## Amendment (2026-08) — broadcast ownership moved into `jobs/lifecycle.py`
+
+The deep-module refactor (design review 2026-08, recommendation A) supersedes the
+*caller-side* mechanics described in decisions 3 and 4, without changing any of the
+architectural choices above (Channels, group fan-out, single sync→async crossing,
+re-fetch-on-connect, best-effort delivery):
+
+- `notify_job` is no longer "called from Celery task code" at per-seam call sites.
+  Every `Job` transition lives in `jobs/lifecycle.py`, and each one ends by
+  scheduling `transaction.on_commit(lambda: notify_job(job))` **unconditionally** —
+  Django runs the callback immediately under autocommit and after commit inside a
+  transaction, so the atomic-vs-autocommit split in decision 4 no longer needs
+  per-caller knowledge. `submit_job` (`jobs/services.py`) does the same for the
+  creation write. Callers never invoke `notify_job` themselves.
+- A **fenced-out** write (a reaped worker's stale token) returns `False`, logs
+  `job.write_fenced`, and does **not** broadcast — the live lease owner announces
+  its own state.
+- The per-seam discipline tests (`test_broadcast_seams.py`) are replaced by
+  interface-level contract tests in `jobs/tests/test_lifecycle.py`; the
+  `django_capture_on_commit_callbacks` coverage noted in decision 8 lives there now.
 
 ## Consequences
 

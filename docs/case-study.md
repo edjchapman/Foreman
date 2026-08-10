@@ -134,10 +134,10 @@ connect, then deltas ([ADR 0004](adr/0004-realtime-websockets.md)). Three
 rules keep the notorious Channels pitfalls out:
 
 - **Exactly one sync→async crossing.** The synchronous `notify_job` (called
-  from task code) re-fetches, serializes, and `group_send`s a finished dict;
-  the async consumer never touches the ORM, so `SynchronousOnlyOperation`
-  can't happen.
-- **`transaction.on_commit` at the atomic seams** — no broadcast of
+  by the `jobs/lifecycle.py` state machine) re-fetches, serializes, and
+  `group_send`s a finished dict; the async consumer never touches the ORM, so
+  `SynchronousOnlyOperation` can't happen.
+- **`transaction.on_commit` on every transition** — no broadcast of
   uncommitted state, no Redis I/O while holding a row lock.
 - **Broadcast is best-effort.** `notify_job` swallows and logs failures,
   because the alternative is worse than a dark UI: an exception at a terminal
