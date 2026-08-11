@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.3](https://github.com/edjchapman/Foreman/compare/v0.17.2...v0.17.3) (2026-08-10)
+
+
+### Code Refactoring
+
+* **jobs:** pass explicit kwargs at the submit seam ([#156](https://github.com/edjchapman/Foreman/issues/156)) ([54282ae](https://github.com/edjchapman/Foreman/commit/54282ae7a3b4a21f44ed0ec9c88e970df02b4786))
+
 ## [0.17.2](https://github.com/edjchapman/Foreman/compare/v0.17.1...v0.17.2) (2026-08-10)
 
 
