@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.0](https://github.com/edjchapman/Foreman/compare/v0.17.3...v0.18.0) (2026-08-11)
+
+
+### Features
+
+* **jobs:** add dead-listener heartbeat metric ([#158](https://github.com/edjchapman/Foreman/issues/158)) ([1b44705](https://github.com/edjchapman/Foreman/commit/1b44705cf1be686167b5670939376c146b54015e))
+
 ## [0.17.3](https://github.com/edjchapman/Foreman/compare/v0.17.2...v0.17.3) (2026-08-10)
 
 
