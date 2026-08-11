@@ -13,7 +13,7 @@ from django.db import connection, connections
 
 from jobs.management.commands import outbox_listener as listener_mod
 from jobs.management.commands.outbox_listener import CHANNEL, Command, _conninfo
-from jobs.models import OutboxEvent
+from jobs.models import OutboxEvent, ProcessHeartbeat
 from jobs.services import submit_job
 
 
@@ -40,6 +40,7 @@ def test_listener_requires_postgres(monkeypatch):
         call_command("outbox_listener")
 
 
+@pytest.mark.django_db
 def test_handle_connects_listens_and_sweeps(monkeypatch):
     """handle() opens a LISTEN connection, runs the initial sweep, then enters the loop.
 
@@ -70,6 +71,9 @@ def test_handle_connects_listens_and_sweeps(monkeypatch):
 
     assert any(f"LISTEN {CHANNEL}" in sql for sql in executed)
     assert dispatched == [1]  # the startup sweep dispatched once
+    # Every completed dispatch cycle — the startup sweep included — writes the
+    # listener's heartbeat, the progress proof behind ForemanListenerDead.
+    assert ProcessHeartbeat.objects.filter(name="listener").exists()
 
 
 def test_request_stop_sets_the_flag():

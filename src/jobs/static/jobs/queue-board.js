@@ -17,6 +17,9 @@ document.addEventListener("alpine:init", () => {
   const BOARD_SIZE = 20;
   const FLASH_MS = 1000;
   const METRICS_POLL_MS = 1500;
+  // Mirrors ForemanListenerDead in ops/observability/prometheus/alerts.yml — keep the
+  // two 30s thresholds identical so the tile and the alert agree on "dead".
+  const LISTENER_DEAD_AFTER_S = 30;
   const DONE = new Set(["SUCCEEDED", "FAILED", "DEAD_LETTER"]);
 
   const csrf = () =>
@@ -157,6 +160,17 @@ document.addEventListener("alpine:init", () => {
   // Queue-metrics tiles, polled from the JSON summary (independent of any one job).
   Alpine.data("metricsStrip", () => ({
     m: { PENDING: "–", PROCESSING: "–", SUCCEEDED: "–", FAILED: "–", DEAD_LETTER: "–", outbox: "–", retry: "–" },
+    // undefined = not polled yet (neutral "–"); null = never beat, which the tile
+    // treats as dead (the summary's JSON edge for a +Inf heartbeat age).
+    listenerAge: undefined,
+
+    get listenerDead() {
+      return this.listenerAge === null || this.listenerAge > LISTENER_DEAD_AFTER_S;
+    },
+    get listenerText() {
+      if (this.listenerAge === undefined) return "–";
+      return this.listenerDead ? "down" : `${Math.round(this.listenerAge)}s`;
+    },
 
     init() {
       this.poll();
@@ -177,6 +191,7 @@ document.addEventListener("alpine:init", () => {
           outbox: d.outbox_pending ?? "–",
           retry: d.retry_scheduled ?? "–",
         };
+        this.listenerAge = d.heartbeats?.listener ?? null;
       } catch (_) {
         /* transient network blip — the next tick retries */
       }

@@ -8,6 +8,12 @@ job is submitted — taking the Beat-poll latency out of the common path. Beat s
 scheduled as the fallback, so a missed notification (e.g. a listener restart) still
 heals on the next poll and delivery remains at-least-once. The listener also sweeps on
 a slow timer, so it is self-healing even if Beat is off.
+
+Each completed dispatch cycle writes the ``listener`` `ProcessHeartbeat` — progress,
+not process-liveness: a wedged listener stops beating within one backstop sweep, and
+`/metrics` surfaces the staleness as ``foreman_process_heartbeat_age_seconds``
+(alert: ``ForemanListenerDead``). Without it, a silently-dead listener is masked by
+Beat's durability fallback and shows up only as degraded dispatch latency.
 """
 
 from __future__ import annotations
@@ -19,6 +25,7 @@ import psycopg
 from django.core.management.base import BaseCommand, CommandError
 from django.db import connections
 
+from jobs.models import ProcessHeartbeat
 from jobs.tasks import dispatch_outbox
 
 CHANNEL = "foreman_outbox"
@@ -48,7 +55,7 @@ class Command(BaseCommand):
         with psycopg.connect(_conninfo(db), autocommit=True) as conn:
             conn.execute(f"LISTEN {CHANNEL}")
             self.stdout.write(self.style.SUCCESS(f"listening on {CHANNEL}; Ctrl-C to stop"))
-            dispatch_outbox()  # initial sweep: publish anything already pending at startup
+            self._dispatch_cycle()  # initial sweep: publish anything already pending at startup
             self._listen(conn)
         self.stdout.write("outbox_listener stopped")
 
@@ -58,7 +65,15 @@ class Command(BaseCommand):
             # dispatch_outbox claims the whole PENDING batch, so a burst coalesces.
             for _ in conn.notifies(timeout=SWEEP_INTERVAL_SECONDS, stop_after=1):
                 pass
-            dispatch_outbox()
+            self._dispatch_cycle()
+
+    def _dispatch_cycle(self) -> None:
+        dispatch_outbox()
+        # The heartbeat is written HERE, in the listener's own loop — never inside
+        # dispatch_outbox(). Beat calls that same task on its durability-fallback
+        # poll, so a task-side write would let Beat refresh the listener's heart
+        # and mask exactly the death this metric exists to catch.
+        ProcessHeartbeat.beat("listener")
 
     def _request_stop(self, *args: Any) -> None:
         self._stop = True

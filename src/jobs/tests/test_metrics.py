@@ -6,7 +6,7 @@ from datetime import timedelta
 import pytest
 from django.utils import timezone
 
-from jobs.models import Job, OutboxEvent
+from jobs.models import Job, OutboxEvent, ProcessHeartbeat
 from jobs.tests.factories import JobFactory
 
 pytestmark = pytest.mark.django_db
@@ -143,6 +143,29 @@ def test_histogram_buckets_are_cumulative_and_monotonic(api_client):
     assert _sample(body, 'foreman_job_processing_seconds_bucket{le="0.5"}') == 1.0
 
 
+def test_heartbeat_age_gauge_reports_age_of_a_fresh_beat(api_client):
+    ProcessHeartbeat.beat("listener")
+
+    age = _sample(_body(api_client), 'foreman_process_heartbeat_age_seconds{process="listener"}')
+    assert 0.0 <= age < 5.0
+
+
+def test_heartbeat_age_gauge_reports_staleness(api_client):
+    ProcessHeartbeat.objects.create(
+        name="listener", beat_at=timezone.now() - timedelta(seconds=120)
+    )
+
+    age = _sample(_body(api_client), 'foreman_process_heartbeat_age_seconds{process="listener"}')
+    assert age == pytest.approx(120.0, abs=5.0)
+
+
+def test_heartbeat_age_gauge_emits_inf_for_a_process_that_never_beat(api_client):
+    # Empty DB: every expected process still gets a series, and never-started is
+    # infinitely stale — not silently absent, and not a lying 0.
+    age = _sample(_body(api_client), 'foreman_process_heartbeat_age_seconds{process="listener"}')
+    assert age == float("inf")
+
+
 # --- JSON summary endpoint (the demo UI's data source) ----------------------------
 
 
@@ -169,3 +192,19 @@ def test_metrics_summary_counts_dead_letter_and_retry_depth(api_client):
     assert body["jobs_by_status"]["DEAD_LETTER"] == 1
     assert body["retry_scheduled"] == 1
     assert body["outbox_pending"] == 1
+
+
+def test_metrics_summary_reports_null_for_a_heartbeat_that_never_beat(api_client):
+    body = api_client.get("/api/v1/metrics/summary").json()
+
+    # JSON has no +Inf — never-beat crosses the JSON edge as null, and the demo
+    # tile treats null as dead.
+    assert body["heartbeats"] == {"listener": None}
+
+
+def test_metrics_summary_reports_heartbeat_age(api_client):
+    ProcessHeartbeat.objects.create(name="listener", beat_at=timezone.now() - timedelta(seconds=10))
+
+    body = api_client.get("/api/v1/metrics/summary").json()
+
+    assert body["heartbeats"]["listener"] == pytest.approx(10.0, abs=5.0)

@@ -97,6 +97,20 @@
           "legendFormat": "FAILED + DEAD_LETTER ratio"
         }
       ]
+    },
+    {
+      "id": 7,
+      "title": "Listener heartbeat age (push-dispatch health)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "foreman-prom" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "foreman_process_heartbeat_age_seconds{process=\"listener\"}",
+          "legendFormat": "listener heartbeat age (s)"
+        }
+      ]
     }
   ]
 }

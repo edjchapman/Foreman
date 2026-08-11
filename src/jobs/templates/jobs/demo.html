@@ -55,6 +55,7 @@
     .metric .n { font-size: 1.2rem; font-weight: 700; font-variant-numeric: tabular-nums; }
     .metric .k { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted); }
     .metric.dlq .n { color: var(--fail); }
+    .metric.down .n { color: var(--fail); }
 
     /* Job panel */
     #panel { margin-top: 0.5rem; padding: 1rem 1.25rem; background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
@@ -168,6 +169,8 @@
     <div class="metric dlq"><div class="n" x-text="m.DEAD_LETTER">–</div><div class="k">Dead-letter</div></div>
     <div class="metric"><div class="n" x-text="m.outbox">–</div><div class="k">Outbox backlog</div></div>
     <div class="metric"><div class="n" x-text="m.retry">–</div><div class="k">Retry queue</div></div>
+    <!-- Push-dispatch health: heartbeat age from the summary's heartbeats field (null = dead). -->
+    <div class="metric" id="listener-health" :class="{ down: listenerDead }" title="Seconds since the outbox listener last completed a dispatch cycle — the push-dispatch heartbeat."><div class="n" x-text="listenerText">–</div><div class="k">Listener</div></div>
   </div>
 
   <section id="queue-board" class="lanes" x-data="queueBoard()">

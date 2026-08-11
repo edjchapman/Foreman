@@ -2,6 +2,7 @@ import uuid
 from typing import Self
 
 from django.db import connection, models
+from django.utils import timezone
 
 
 class LockingQuerySet[M: models.Model](models.QuerySet[M]):
@@ -185,3 +186,30 @@ class PropertyRecord(models.Model):
 
     def __str__(self) -> str:
         return f"PropertyRecord {self.external_id} ({self.city})"
+
+
+class ProcessHeartbeat(models.Model):
+    """A process's durable, periodically refreshed proof that it is making progress.
+
+    Written after a successful work cycle — *progress*, not process-liveness: a
+    wedged process stops beating even while its PID survives. Durable (a table
+    row, not process state) because every metric is derived from Postgres at
+    scrape time (see ``jobs.metrics``); the listener's silent death is otherwise
+    masked by Beat's durability fallback and visible only as degraded latency.
+
+    Rejected shapes: probing ``pg_stat_activity`` / ``application_name`` (proves
+    the connection exists, not that work completes); exposing the raw timestamp
+    (the endpoint's house style is age gauges); a boolean up-gauge (bakes the
+    staleness threshold — alert policy — into app code).
+    """
+
+    name = models.CharField(max_length=64, primary_key=True)
+    beat_at = models.DateTimeField()
+
+    def __str__(self) -> str:
+        return f"ProcessHeartbeat {self.name} @ {self.beat_at}"
+
+    @classmethod
+    def beat(cls, name: str) -> None:
+        """Record that ``name`` completed a work cycle just now (upsert)."""
+        cls.objects.update_or_create(name=name, defaults={"beat_at": timezone.now()})
