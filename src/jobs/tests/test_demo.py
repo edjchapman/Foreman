@@ -19,6 +19,7 @@ def test_demo_page_renders(client):
     assert 'id="run-dlq"' in body
     assert 'id="redrive"' in body  # revealed by the jobDemo component on DEAD_LETTER
     assert 'id="metrics"' in body  # live queue-metrics strip (polls /metrics/summary)
+    assert 'id="listener-health"' in body  # push-dispatch health tile (heartbeat age)
     assert 'id="report"' in body  # download link, revealed by the jobDemo component on SUCCEEDED
     # Live queue board: wired via a vendored Alpine component (the ws/queue/ URL itself lives
     # in queue-board.js, so it's asserted by the consumer + e2e suites, not here).

@@ -32,6 +32,11 @@ _Avoid_: backstop (that's the listener's own sweep)
 The listener's periodic safety dispatch between notifications. Distinct from
 the durability fallback, which works with no listener at all.
 
+**Heartbeat**:
+A process's durable, periodically refreshed proof that it is making progress;
+staleness presumes the process dead.
+_Avoid_: liveness ping, keepalive
+
 ### Job lifecycle
 
 **Claim**:

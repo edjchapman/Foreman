@@ -3,7 +3,7 @@ from django.db.models import QuerySet
 from django.http import HttpRequest
 
 from . import lifecycle
-from .models import Job, OutboxEvent, PropertyRecord
+from .models import Job, OutboxEvent, ProcessHeartbeat, PropertyRecord
 
 
 @admin.register(Job)
@@ -34,6 +34,12 @@ class OutboxEventAdmin(admin.ModelAdmin):
     list_display = ["id", "job", "event_type", "status", "created_at", "dispatched_at"]
     list_filter = ["status", "event_type"]
     search_fields = ["job__id"]
+
+
+@admin.register(ProcessHeartbeat)
+class ProcessHeartbeatAdmin(admin.ModelAdmin):
+    list_display = ["name", "beat_at"]
+    search_fields = ["name"]
 
 
 @admin.register(PropertyRecord)

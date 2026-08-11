@@ -45,7 +45,7 @@ from prometheus_client.core import (
 )
 from prometheus_client.registry import Collector
 
-from .models import Job, OutboxEvent
+from .models import Job, OutboxEvent, ProcessHeartbeat
 
 # Jobs never leave these states (barring redrive), so a live count of rows in
 # them doubles as a cumulative "how many ever reached this outcome" counter.
@@ -54,6 +54,12 @@ TERMINAL_STATUSES = (
     Job.Status.FAILED.value,
     Job.Status.DEAD_LETTER.value,
 )
+
+# Every process expected to write a ProcessHeartbeat row. Each always emits a
+# heartbeat-age series — a process that never beat reports +Inf (infinitely
+# stale), the zero-fill convention pointed in the honest direction: absence
+# must look dead, not fine.
+EXPECTED_HEARTBEATS = ("listener",)
 
 # Histogram bucket upper bounds in seconds; "+Inf" is appended at emit time.
 LATENCY_BUCKETS_SECONDS = (0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0, 60.0)
@@ -100,6 +106,17 @@ def processing_oldest_age_seconds(now: datetime) -> float:
     return (now - oldest).total_seconds() if oldest else 0.0
 
 
+def heartbeat_ages_seconds(now: datetime) -> dict[str, float]:
+    """Seconds since each expected process last beat; +Inf if it never has."""
+    rows = dict(
+        ProcessHeartbeat.objects.filter(name__in=EXPECTED_HEARTBEATS).values_list("name", "beat_at")
+    )
+    return {
+        name: (now - rows[name]).total_seconds() if name in rows else float("inf")
+        for name in EXPECTED_HEARTBEATS
+    }
+
+
 def summary() -> dict:
     """A JSON-friendly snapshot of the queue's golden signals for the demo UI."""
     now = timezone.now()
@@ -109,6 +126,12 @@ def summary() -> dict:
         "outbox_oldest_pending_age_seconds": round(outbox_oldest_age_seconds(now), 3),
         "retry_scheduled": retry_scheduled_count(now),
         "processing_oldest_age_seconds": round(processing_oldest_age_seconds(now), 3),
+        # JSON has no +Inf: a process that never beat crosses this edge as null
+        # (the demo tile treats null as dead).
+        "heartbeats": {
+            name: round(age, 3) if age != float("inf") else None
+            for name, age in heartbeat_ages_seconds(now).items()
+        },
     }
 
 
@@ -123,6 +146,7 @@ class ForemanCollector(Collector):
         yield self._outbox_oldest_age(now)
         yield self._retry_scheduled(now)
         yield self._processing_oldest_age(now)
+        yield self._process_heartbeat_age(now)
         yield self._queue_wait_histogram()
         yield self._processing_histogram()
 
@@ -179,6 +203,16 @@ class ForemanCollector(Collector):
             "Age of the oldest in-flight job (stuck-lease / worker-death signal).",
             value=processing_oldest_age_seconds(now),
         )
+
+    def _process_heartbeat_age(self, now: datetime) -> GaugeMetricFamily:
+        gauge = GaugeMetricFamily(
+            "foreman_process_heartbeat_age_seconds",
+            "Seconds since the process last completed a work cycle (+Inf = never).",
+            labels=["process"],
+        )
+        for name, age in heartbeat_ages_seconds(now).items():
+            gauge.add_metric([name], age)
+        return gauge
 
     def _queue_wait_histogram(self) -> HistogramMetricFamily:
         return self._duration_histogram(

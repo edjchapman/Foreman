@@ -37,6 +37,7 @@ All gauges, computed from the database at scrape time (prefix `foreman_`):
 | `foreman_outbox_oldest_pending_age_seconds` | Age of the oldest undispatched event (dispatch lag). | > ~30s. | Beat's `dispatch_outbox` is not running — see [the relay is behind](#the-relay-is-behind). |
 | `foreman_jobs_retry_scheduled` | PENDING jobs waiting on backoff. | Sustained growth. | Systemic transient failure (a dependency is down); check `job.retry_scheduled` logs. |
 | `foreman_jobs_processing_oldest_age_seconds` | Age of the oldest in-flight job. | > `JOB_LEASE_SECONDS` and climbing. | The reaper (`recover_jobs`) is not running, or jobs are genuinely stuck. |
+| `foreman_process_heartbeat_age_seconds{process}` | Seconds since the process last completed a work cycle (`+Inf` = never). | `process="listener"` > ~30s. | Push-dispatch is down; latency degrades to the Beat poll — see [the listener is dead](#the-listener-is-dead). |
 
 These thresholds are not just documentation — they are committed as live
 Prometheus rules; see [SLOs & alerts](#slos--alerts).
@@ -61,7 +62,8 @@ datasource auto-provisioned, no login). A drift-guard test
 
 Alerts: `ForemanDeadLetterGrowth`, `ForemanOutboxDispatchLagging` (> 30 s for
 2 m), `ForemanProcessingStuck` (> 300 s for 5 m), `ForemanRetryBacklogGrowing`,
-and the two SLO-breach alerts. Counter-derived rules deliberately use
+`ForemanListenerDead` (heartbeat age > 30 s for 2 m, **warn** — latency-only,
+Beat keeps delivery correct), and the two SLO-breach alerts. Counter-derived rules deliberately use
 `increase()`/`rate()` rather than absolute totals: the counters are DB-derived
 ([ADR 0006](adr/0006-load-testing-metrics.md)), so growth-based expressions
 stay correct if retention pruning ever shrinks the underlying rows.
@@ -129,6 +131,20 @@ not running. Confirm the `beat` service is up; for a one-shot manual dispatch wi
 ```bash
 make relay   # dispatch the outbox once
 ```
+
+### The listener is dead
+
+`ForemanListenerDead` fires when the `listener` heartbeat goes stale (`+Inf` means it
+never started). The heartbeat is written after each completed dispatch cycle —
+*progress*, not liveness — so a wedged listener stops beating within one backstop
+sweep even if its process survives. Nothing is lost while it is down: Beat's
+durability fallback keeps dispatching, so the only impact is push-dispatch latency
+degrading to the poll interval ([ADR 0007](adr/0007-listen-notify-dispatch.md)).
+
+Restart the `listener` service (Railway: redeploy it; locally: `make listener`) and
+confirm `foreman_process_heartbeat_age_seconds{process="listener"}` drops below the
+sweep interval. If it misbehaves persistently, withdrawing it entirely is safe — see
+[deploy.md](deploy.md).
 
 ### A worker crashed mid-job
 

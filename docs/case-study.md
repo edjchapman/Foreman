@@ -245,13 +245,16 @@ realtime — proven by a hermetic test that asserts a shared `trace_id` and pare
 
 WebSocket metrics and per-connection auth; `s3://` CSV sources behind the same ingest
 seam that now serves `https://` (shipped with an SSRF guard plus size, timeout, and
-row caps); API keys with per-owner job scoping; relaxing the now-fallback Beat
+row caps); API keys with per-owner job scoping; and relaxing the now-fallback Beat
 poll to cut idle DB load — once the listener has a production track record
-([ADR 0007](adr/0007-listen-notify-dispatch.md) left it at 1 s deliberately);
-and a durable dead-listener signal in `/metrics` (today a silently-dead listener
-is masked by the Beat fallback and visible only as degraded latency — a direct
-signal needs a DB-visible artifact, since the metrics are derived from Postgres
-at scrape time).
+([ADR 0007](adr/0007-listen-notify-dispatch.md) left it at 1 s deliberately).
+
+One item from this list has since shipped: the durable dead-listener signal. A
+silently-dead listener was masked by the Beat fallback — visible only as degraded
+latency — because every metric is derived from Postgres at scrape time. The listener
+now writes a heartbeat row after each completed dispatch cycle (progress, not
+process-liveness), exposed as `foreman_process_heartbeat_age_seconds{process="listener"}`
+with a matching `ForemanListenerDead` alert and a listener-health tile on the demo page.
 
 ---
 

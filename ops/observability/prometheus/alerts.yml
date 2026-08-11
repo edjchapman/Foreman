@@ -38,6 +38,20 @@ groups:
           summary: "In-flight job far older than the lease — the reaper (recover_jobs) is not running"
           runbook: "https://github.com/edjchapman/Foreman/blob/main/docs/runbook.md#a-worker-crashed-mid-job"
 
+      - alert: ForemanListenerDead
+        # Progress heartbeat written only by the listener's own dispatch loop.
+        # Beat's durability fallback keeps delivery correct while the listener is
+        # down, so this is a latency-only degradation: warn, not page (correctness
+        # paging is ForemanOutboxDispatchLagging). The demo page's listener tile
+        # mirrors this 30s threshold — keep them identical.
+        expr: foreman_process_heartbeat_age_seconds{process="listener"} > 30
+        for: 2m
+        labels:
+          severity: warn
+        annotations:
+          summary: "Listener heartbeat is stale — push-dispatch is down; delivery degraded to the Beat poll"
+          runbook: "https://github.com/edjchapman/Foreman/blob/main/docs/runbook.md#the-listener-is-dead"
+
       - alert: ForemanRetryBacklogGrowing
         expr: foreman_jobs_retry_scheduled > 10
         for: 10m
