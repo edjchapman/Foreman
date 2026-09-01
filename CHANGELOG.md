@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.18.1](https://github.com/edjchapman/Foreman/compare/v0.18.0...v0.18.1) (2026-09-01)
+
+
+### Build System
+
+* **deps:** bump django, drf, sqlparse and pip for advisories ([#166](https://github.com/edjchapman/Foreman/issues/166)) ([b9e6bf8](https://github.com/edjchapman/Foreman/commit/b9e6bf859241cf2e09f0c77f757fe827c94d5e98))
+* **deps:** bump sqlparse from 0.5.5 to 0.6.0 ([#161](https://github.com/edjchapman/Foreman/issues/161)) ([ea85254](https://github.com/edjchapman/Foreman/commit/ea85254e79eff4d230667fa07e77846be21523bb))
+
 ## [0.18.0](https://github.com/edjchapman/Foreman/compare/v0.17.3...v0.18.0) (2026-08-11)
 
 
