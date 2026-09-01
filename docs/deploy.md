@@ -23,14 +23,17 @@ One Railway project (`foreman`), one environment (`production`), five services
 |---|---|---|
 | `Postgres` | Railway template (`ghcr.io/railwayapp-templates/postgres-ssl:16`) | Pin the image tag to `16` **before first boot** — switching major version after data exists breaks the data dir. Volume attached by the template. |
 | `Redis` | Railway template | Celery broker + result backend + Channels layer, all via one `REDIS_URL`. **No volume** — all state is ephemeral by design (and the provider can't reliably attach a second volume; see `ops/deploy/terraform/main.tf`). |
-| `web` | `ghcr.io/edjchapman/foreman:<semver>` | Image default CMD (daphne, port 8000). Healthcheck path `/readyz`. Pre-deploy command `python manage.py migrate`. Public domain generated (target port 8000). |
+| `web` | `ghcr.io/edjchapman/foreman:<semver>` | Image default CMD (daphne, port 8000). Healthcheck path `/readyz`. Pre-deploy command `python manage.py migrate_when_ready` (waits for Postgres, then migrates — see the [runbook](runbook.md#web-fails-to-deploy-after-terraform-apply-private-network-dns-race)). Public domain generated (target port 8000). |
 | `worker` | same image | Start command `celery -A config worker -l info --concurrency 2` (`--concurrency 2` caps fork-per-visible-CPU RAM cost). The image puts the `--no-dev` venv on `PATH`, so the binary runs directly (no `uv` in the runtime image). |
 | `beat` | same image | Start command `celery -A config beat -l info`. Exactly 1 replica, always — two Beats double-schedule. The `celerybeat-schedule` file on ephemeral FS is fine (re-seeds from settings). |
 | `listener` *(optional)* | same image | Start command `python manage.py outbox_listener`. LISTEN/NOTIFY **push-dispatch** ([ADR 0007](adr/0007-listen-notify-dispatch.md)) — dispatches the outbox the instant a job commits, so the Beat poll above becomes a fallback. A latency optimization, not a delivery dependency: the stack is correct without it. CD deploys it only once `RAILWAY_LISTENER_SERVICE_ID` is set — enabled in the live demo since v0.16.1. |
 
 App services talk to Postgres/Redis over Railway **private networking**
 (`*.railway.internal` — the templates' default `DATABASE_URL`/`REDIS_URL`
-already point there): no egress fees, dual-stack IPv4+IPv6.
+already point there): no egress fees, dual-stack IPv4+IPv6. A service's
+internal DNS record is published only once that service has a **running**
+deployment, which is why `web`'s pre-deploy waits for the database rather than
+assuming it (see the [runbook](runbook.md#web-fails-to-deploy-after-terraform-apply-private-network-dns-race)).
 
 ## Environment variables
 
@@ -168,8 +171,10 @@ for image-sourced services *are* expressible via the public GraphQL API, so
 (`make configure`) applies them right after `apply` (they survive CD image
 re-pins; the script is idempotent):
 
-- **web**: Pre-Deploy Command `python manage.py migrate`;
-  Healthcheck Path `/readyz` (default 300 s timeout).
+- **web**: Pre-Deploy Command `python manage.py migrate_when_ready`;
+  Healthcheck Path `/readyz` (default 300 s timeout). The command waits for
+  Postgres to accept connections before migrating — on a cold `apply` the
+  pre-deploy would otherwise race the Postgres service's own first deployment.
 - **worker**: Custom Start Command
   `celery -A config worker -l info --concurrency 2`.
 - **beat**: Custom Start Command
@@ -229,6 +234,14 @@ re-runs its pinned semver tag), or `make deploy VERSION=<previous>` from
 anywhere with the token. **Migrations are not auto-reversed** — rolling back
 across a breaking migration needs a manual `migrate <app> <prev>` first (the
 `Job` schema convention is forward-compatible precisely to keep this rare).
+
+**Do not roll back past the release that introduced
+`migrate_when_ready`** without first reverting web's Pre-Deploy
+Command to `python manage.py migrate`. The pre-deploy is a *service* setting,
+not part of the image: an older image has no `migrate_when_ready` command, so
+its pre-deploy exits non-zero (`Unknown command`) and the rollback deploy
+fails. The same ordering applies forwards — run `make configure` only once an
+image containing the command is published to GHCR.
 
 **Withdrawing the listener** (if push-dispatch misbehaves) is two steps, in
 this order:

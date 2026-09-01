@@ -3,7 +3,7 @@
 # the Terraform provider (v0.6.x) cannot express, set via the same
 # serviceInstanceUpdate mutation the CD script uses for image pinning:
 #
-#   web    → Pre-Deploy Command  (python manage.py migrate)
+#   web    → Pre-Deploy Command  (python manage.py migrate_when_ready)
 #            Healthcheck Path    (/readyz)
 #   worker → Custom Start Command (celery worker)
 #   beat   → Custom Start Command (celery beat)
@@ -60,10 +60,17 @@ configure() { # configure <service-id> <ServiceInstanceUpdateInput json> <label>
 }
 
 # preDeployCommand is [String!] in the schema; start/healthcheck are plain strings.
+#
+# migrate_when_ready, not a bare `migrate`: on a cold `terraform apply` all six services
+# are created in the same second and Railway only publishes <name>.railway.internal once
+# a service has a running deployment, so the pre-deploy can lose the race and fail the
+# whole web deploy on DNS (observed 2026-09-01). It is ONE command deliberately — Railway
+# does not document preDeployCommand as shell-interpreted, so `wait && migrate` could
+# silently never wait. See src/jobs/management/commands/migrate_when_ready.py.
 configure "$RAILWAY_WEB_SERVICE_ID" '{
-  "preDeployCommand": ["python manage.py migrate"],
+  "preDeployCommand": ["python manage.py migrate_when_ready"],
   "healthcheckPath": "/readyz"
-}' "web (pre-deploy migrate + /readyz healthcheck)"
+}' "web (pre-deploy migrate_when_ready + /readyz healthcheck)"
 
 configure "$RAILWAY_WORKER_SERVICE_ID" '{
   "startCommand": "celery -A config worker -l info --concurrency 2"
