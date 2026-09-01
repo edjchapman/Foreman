@@ -5,7 +5,7 @@ description = "Event-driven job-processing platform — property-data import wit
 requires-python = ">=3.12"
 dependencies = [
     "django>=6.0.6,<6.1",
-    "djangorestframework>=3.15",
+    "djangorestframework>=3.17.2",
     "psycopg[binary]>=3.3.4",
     "dj-database-url>=2.2",
     "celery[redis]>=5.6.3",
