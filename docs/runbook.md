@@ -157,6 +157,44 @@ This scenario is executable: `make chaos` SIGKILLs the worker mid-import on an i
 compose stack and asserts every job still succeeds with no lost or duplicated rows — see
 [tests/chaos/README.md](../tests/chaos/README.md). CI repeats it nightly (`chaos.yml`, non-blocking).
 
+### Web fails to deploy after `terraform apply` (private-network DNS race)
+
+Symptom: right after `terraform apply` brings the demo back on, the `web`
+deployment goes `FAILED` while `worker`/`beat`/`listener`/`postgres`/`redis`
+all report `SUCCESS`, and the domain serves Railway's edge 404
+(`{"status":"error","code":404,"message":"Application not found"}`) rather
+than anything from Django. The deploy log ends with the pre-deploy container
+raising:
+
+```text
+psycopg.OperationalError: failed to resolve host 'postgres.railway.internal':
+  [Errno -2] Name or service not known
+```
+
+Cause: a **DNS race, not a credentials or connectivity fault** — `Name or
+service not known` is a resolver miss, so the host did not exist yet.
+`terraform apply` creates all six services in the same second, and Railway
+publishes `<service>.railway.internal` only once that service has a *running*
+deployment. Web's pre-deploy fired ~28 s before Postgres finished deploying.
+Only `web` dies because it is the only service with a pre-deploy command: a
+one-shot that resolves the host immediately and fails the whole deploy on a
+non-zero exit. Celery retries its broker connection and Django opens DB
+connections lazily, so the rest of the fleet rides out the same window.
+
+Fix (already deployed, but the manual recovery if it recurs): Postgres is
+healthy by the time you look, so simply redeploy `web` — the dashboard's
+**Redeploy** on the failed deployment, or `make deploy VERSION=<current>`.
+No Terraform change and no re-`apply`; the image and env are already correct.
+
+Prevention: web's pre-deploy is
+[`migrate_when_ready`](../src/jobs/management/commands/migrate_when_ready.py),
+which retries the connection for 90 s before migrating, so a cold `apply` now
+heals itself. It stays a single command because Railway does not document
+`preDeployCommand` as shell-interpreted — a `wait && migrate` pair could
+silently skip the wait. Only `OperationalError` is retried, so a genuinely
+broken migration still fails on the first attempt instead of after the
+timeout.
+
 ### Local test run can't reach Postgres (stale db container)
 
 Symptom: a host `pytest`/`make ci` run errors en masse (every `django_db` test)
