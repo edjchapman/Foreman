@@ -78,7 +78,7 @@ jobs:
         env:
           FOREMAN_E2E_URL: ${{ vars.FOREMAN_E2E_URL || 'https://foreman.edwardchapman.co.uk' }}
         run: ./ops/deploy/scripts/smoke-check.sh
-      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         if: ${{ !inputs.skip_smoke }}
         with:
           python-version: "3.12"
